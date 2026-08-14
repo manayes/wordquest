@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WordQuest — 나의 영어 단어장</title>
+<link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+<div class="app">
+
+  <!-- 홈 화면 -->
+  <section id="screen-home" class="screen">
+    <header class="home-header">
+      <h1>📚 WordQuest</h1>
+      <p class="subtitle">나의 영어 단어장</p>
+    </header>
+
+    <div class="home-layout">
+    <div class="home-left">
+    <div class="player-card">
+      <div class="level-badge" id="level-badge">Lv.1</div>
+      <div class="xp-wrap">
+        <div class="xp-text" id="xp-text">0 / 100 XP</div>
+        <div class="xp-bar-bg"><div class="xp-bar" id="xp-bar"></div></div>
+      </div>
+      <div class="streak-box" title="연속 학습">🔥 <b id="streak-num">0</b>일</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">전체 단어</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-learned">0</div><div class="stat-label">학습한 단어</div></div>
+      <div class="stat-card"><div class="stat-num accent" id="stat-due">0</div><div class="stat-label">오늘 복습</div></div>
+      <div class="stat-card"><div class="stat-num gold" id="stat-master">0</div><div class="stat-label">마스터</div></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-labels">
+        <span>🌱 새싹 <b id="stat-seed">0</b></span>
+        <span>🌿 성장 <b id="stat-grow">0</b></span>
+        <span>🌳 마스터 <b id="stat-tree">0</b></span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar" id="learn-progress"></div></div>
+      <div class="progress-caption" id="progress-caption"></div>
+    </div>
+
+    <div class="heatmap-wrap">
+      <div class="heatmap-title">📅 학습 기록</div>
+      <div class="heatmap" id="heatmap"></div>
+    </div>
+    </div><!-- /home-left -->
+
+    <div class="home-right">
+    <div class="quest-card">
+      <div class="quest-title">🗓️ 일일 퀘스트</div>
+      <ul class="quest-list" id="quest-list"></ul>
+    </div>
+    <button class="btn btn-primary btn-big" id="btn-start-study">
+      <span class="btn-title">오늘의 학습 시작</span>
+      <span class="btn-sub" id="study-preview"></span>
+    </button>
+    <button class="btn btn-secondary" id="btn-start-quiz">🎯 퀴즈 풀기</button>
+
+    <div class="settings-row">
+      <label for="sel-new-per-day">하루 새 단어</label>
+      <select id="sel-new-per-day">
+        <option value="5">5개</option>
+        <option value="10" selected>10개</option>
+        <option value="20">20개</option>
+        <option value="30">30개</option>
+      </select>
+      <button class="btn-ai-settings" id="btn-ai-settings">🤖 AI 설정</button>
+      <button class="btn-ai-settings" id="btn-sync-settings">☁️ 동기화</button>
+    </div>
+    <p class="done-note" id="done-note" hidden>✅ 오늘의 학습을 완료했습니다!</p>
+    </div><!-- /home-right -->
+    </div><!-- /home-layout -->
+  </section>
+
+  <!-- 학습 화면 -->
+  <section id="screen-study" class="screen" hidden>
+    <div class="topbar">
+      <button class="btn-icon" id="btn-study-exit" title="홈으로">←</button>
+      <div class="session-progress-bg"><div class="session-progress" id="study-progress"></div></div>
+      <span class="session-count" id="study-count"></span>
+    </div>
+
+    <div class="card" id="study-card">
+      <div class="card-badge" id="card-badge"></div>
+      <div class="card-word-row">
+        <span class="card-word" id="card-word"></span>
+        <button class="btn-tts" id="btn-tts" title="발음 듣기">🔊</button>
+      </div>
+      <div class="card-ipa" id="card-ipa"></div>
+
+      <div class="card-answer" id="card-answer" hidden>
+        <div class="card-meaning" id="card-meaning"></div>
+        <div class="card-example" id="card-example"></div>
+        <div class="ai-actions" id="ai-actions">
+          <button class="btn-ai" id="btn-ai-mnemonic">🧠 AI 연상법</button>
+          <button class="btn-ai" id="btn-ai-example">✍️ AI 예문</button>
+        </div>
+        <div class="ai-output" id="ai-output" hidden></div>
+      </div>
+    </div>
+
+    <div class="study-actions">
+      <button class="btn btn-primary" id="btn-reveal">정답 보기</button>
+      <div class="grade-buttons" id="grade-buttons" hidden>
+        <button class="btn grade grade-again" data-grade="0">모름<small id="ivl-0"></small></button>
+        <button class="btn grade grade-hard" data-grade="1">애매함<small id="ivl-1"></small></button>
+        <button class="btn grade grade-good" data-grade="2">알았음<small id="ivl-2"></small></button>
+        <button class="btn grade grade-easy" data-grade="3">쉬움<small id="ivl-3"></small></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 퀴즈 화면 -->
+  <section id="screen-quiz" class="screen" hidden>
+    <div class="topbar">
+      <button class="btn-icon" id="btn-quiz-exit" title="홈으로">←</button>
+      <div class="session-progress-bg"><div class="session-progress" id="quiz-progress"></div></div>
+      <span class="session-count" id="quiz-count"></span>
+    </div>
+
+    <div class="card quiz-card">
+      <div class="card-badge" id="quiz-type-badge"></div>
+      <div class="quiz-question" id="quiz-question"></div>
+      <div class="quiz-options" id="quiz-options"></div>
+      <div class="quiz-spelling" id="quiz-spelling" hidden>
+        <input type="text" id="spelling-input" placeholder="영어 단어를 입력하세요" autocomplete="off" spellcheck="false">
+        <button class="btn btn-primary" id="btn-spelling-submit">확인</button>
+      </div>
+      <div class="quiz-feedback" id="quiz-feedback" hidden></div>
+    </div>
+    <button class="btn btn-primary" id="btn-quiz-next" hidden>다음 문제</button>
+  </section>
+
+  <!-- 결과 화면 -->
+  <section id="screen-summary" class="screen" hidden>
+    <div class="summary-card">
+      <div class="summary-emoji" id="summary-emoji">🎉</div>
+      <h2 id="summary-title"></h2>
+      <div class="summary-stats" id="summary-stats"></div>
+      <button class="btn btn-primary btn-big" id="btn-summary-home">홈으로</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- AI 설정 모달 -->
+<div class="modal-overlay" id="ai-modal" hidden>
+  <div class="modal">
+    <h3>🤖 AI 설정</h3>
+    <label class="modal-label" for="ai-key-input">Claude API 키</label>
+    <input type="password" id="ai-key-input" placeholder="sk-ant-..." autocomplete="off">
+    <label class="modal-label" for="ai-model-select">모델</label>
+    <select id="ai-model-select">
+      <option value="claude-opus-5">Claude Opus 5 — 최고 품질 (기본)</option>
+      <option value="claude-sonnet-5">Claude Sonnet 5 — 빠르고 저렴</option>
+      <option value="claude-haiku-4-5">Claude Haiku 4.5 — 가장 저렴</option>
+    </select>
+    <label class="modal-label" for="ai-interest-select">관심 분야 (AI 예문 주제)</label>
+    <select id="ai-interest-select">
+      <option value="일상">일상 생활</option>
+      <option value="비즈니스">비즈니스</option>
+      <option value="여행">여행</option>
+      <option value="영화/드라마">영화/드라마</option>
+      <option value="과학/기술">과학/기술</option>
+    </select>
+    <p class="modal-note">API 키는 이 브라우저(localStorage)에만 저장되며 Anthropic API 호출에만 사용됩니다.</p>
+    <div class="modal-buttons">
+      <button class="btn btn-primary" id="btn-ai-save">저장</button>
+      <button class="btn btn-secondary" id="btn-ai-close">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 동기화 설정 모달 -->
+<div class="modal-overlay" id="sync-modal" hidden>
+  <div class="modal">
+    <h3>☁️ 기기 간 동기화</h3>
+    <p class="modal-note">학습 기록을 내 GitHub 계정의 비공개 Gist에 백업합니다.
+      다른 노트북에서 같은 토큰을 입력하면 기록을 이어서 사용할 수 있습니다.</p>
+    <label class="modal-label" for="sync-token-input">GitHub 토큰 (gist 권한)</label>
+    <input type="password" id="sync-token-input" placeholder="ghp_..." autocomplete="off">
+    <p class="modal-note">토큰 만들기: <a href="https://github.com/settings/tokens/new?scopes=gist&description=WordQuest%20Sync" target="_blank" rel="noopener">github.com/settings/tokens/new</a>
+      에서 <b>gist</b> 권한만 체크 후 Generate → 복사해서 붙여넣기.
+      토큰은 이 브라우저에만 저장되고 백업 파일에는 포함되지 않습니다.</p>
+    <p class="modal-note" id="sync-status"></p>
+    <div class="modal-buttons">
+      <button class="btn btn-primary" id="btn-sync-save">저장</button>
+      <button class="btn btn-secondary" id="btn-sync-close">닫기</button>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" id="btn-sync-push">⬆️ 지금 백업</button>
+      <button class="btn btn-secondary" id="btn-sync-pull">⬇️ 백업 복원</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="data/words.js?v=4"></script>
+<script src="js/srs.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/game.js?v=4"></script>
+<script src="js/quiz.js?v=4"></script>
+<script src="js/ai.js?v=4"></script>
+<script src="js/sync.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
+</body>
+</html>
