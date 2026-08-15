@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WordQuest — 나의 영어 단어장</title>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <div class="app">
@@ -66,7 +66,8 @@
     <button class="btn btn-secondary" id="btn-start-quiz">🎯 퀴즈 풀기</button>
     <div class="practice-row">
       <button class="btn btn-secondary half" id="btn-start-talk">🗣️ AI 회화</button>
-      <button class="btn btn-secondary half" id="btn-start-write">✏️ 영작 연습</button>
+      <button class="btn btn-secondary half" id="btn-start-write">✏️ 영작</button>
+      <button class="btn btn-secondary half" id="btn-start-shadow">🎧 쉐도잉</button>
     </div>
 
     <div class="settings-row">
@@ -177,6 +178,28 @@
     <button class="btn btn-primary" id="btn-write-next" hidden>다음 문제</button>
   </section>
 
+  <!-- 쉐도잉 화면 -->
+  <section id="screen-shadow" class="screen" hidden>
+    <div class="topbar">
+      <button class="btn-icon" id="btn-shadow-exit" title="홈으로">←</button>
+      <div class="session-progress-bg"><div class="session-progress" id="shadow-progress"></div></div>
+      <span class="session-count" id="shadow-count"></span>
+    </div>
+    <div class="card shadow-card">
+      <div class="card-badge">🎧 쉐도잉</div>
+      <div class="shadow-word" id="shadow-word"></div>
+      <div class="shadow-sentence" id="shadow-sentence"></div>
+      <div class="shadow-controls">
+        <button class="btn-shadow" id="btn-shadow-play">🔊 듣기</button>
+        <button class="btn-shadow" id="btn-shadow-slow">🐢 천천히</button>
+        <button class="btn-shadow" id="btn-shadow-reveal">👀 문장 보기</button>
+        <button class="btn-shadow mic" id="btn-shadow-mic">🎤 말하기</button>
+      </div>
+      <div class="shadow-result" id="shadow-result" hidden></div>
+    </div>
+    <button class="btn btn-primary" id="btn-shadow-next">다음 문장</button>
+  </section>
+
   <!-- 결과 화면 -->
   <section id="screen-summary" class="screen" hidden>
     <div class="summary-card">
@@ -242,14 +265,14 @@
 
 <div id="toast-container"></div>
 
-<script src="data/words.js?v=6"></script>
-<script src="data/words_toeic.js?v=6"></script>
-<script src="js/srs.js?v=6"></script>
-<script src="js/store.js?v=6"></script>
-<script src="js/game.js?v=6"></script>
-<script src="js/quiz.js?v=6"></script>
-<script src="js/ai.js?v=6"></script>
-<script src="js/sync.js?v=6"></script>
-<script src="js/app.js?v=6"></script>
+<script src="data/words.js?v=7"></script>
+<script src="data/words_toeic.js?v=7"></script>
+<script src="js/srs.js?v=7"></script>
+<script src="js/store.js?v=7"></script>
+<script src="js/game.js?v=7"></script>
+<script src="js/quiz.js?v=7"></script>
+<script src="js/ai.js?v=7"></script>
+<script src="js/sync.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>

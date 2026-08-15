@@ -22,7 +22,7 @@
   });
 
   // ---------- 화면 전환 ----------
-  const screens = ["home", "study", "quiz", "talk", "write", "summary"];
+  const screens = ["home", "study", "quiz", "talk", "write", "shadow", "summary"];
   function show(name) {
     screens.forEach(s => { $(`screen-${s}`).hidden = (s !== name); });
     if (name === "home") renderHome();
@@ -891,6 +891,154 @@
     }
   });
   $("btn-write-exit").addEventListener("click", () => { write = null; show("home"); });
+
+  // ---------- 쉐도잉 ----------
+  let shadow = null; // {items, index, revealed, spoken, xp}
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  let recognizer = null;
+
+  function speakRate(text, rate) {
+    if (!("speechSynthesis" in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US";
+    u.rate = rate;
+    const voice = speechSynthesis.getVoices().find(v => v.lang.startsWith("en"));
+    if (voice) u.voice = voice;
+    speechSynthesis.speak(u);
+  }
+
+  function startShadow() {
+    // 배운 단어 중 예문이 있는 것 (최근 학습 우선)
+    const studied = Object.keys(state.cards).map(id => wordById.get(Number(id)))
+      .filter(w => w && inDeck(w) && w.example);
+    if (studied.length < 3) {
+      toast("먼저 '오늘의 학습'으로 단어를 3개 이상 배워주세요");
+      return;
+    }
+    const items = studied.slice(-8).reverse();
+    shadow = { items, index: 0, revealed: false, spoken: false };
+    $("btn-shadow-mic").hidden = !SpeechRec; // 미지원 브라우저(아이폰 등)는 숨김
+    show("shadow");
+    renderShadow();
+  }
+
+  function renderShadow() {
+    const w = shadow.items[shadow.index];
+    shadow.revealed = false;
+    shadow.spoken = false;
+    $("shadow-word").innerHTML = "";
+    const b = document.createElement("b");
+    b.textContent = w.word;
+    $("shadow-word").appendChild(b);
+    $("shadow-word").appendChild(document.createTextNode(" — " + w.meaning));
+    const s = $("shadow-sentence");
+    s.className = "shadow-sentence hidden-text";
+    s.textContent = "🔈 먼저 귀로만 듣고 소리 내어 따라 말해보세요. 그 다음 문장을 확인하세요.";
+    $("shadow-result").hidden = true;
+    $("shadow-result").innerHTML = "";
+    $("shadow-progress").style.width = `${shadow.index / shadow.items.length * 100}%`;
+    $("shadow-count").textContent = `${shadow.index + 1}/${shadow.items.length}`;
+    speakRate(w.example, 0.85);
+  }
+
+  function revealShadow() {
+    const w = shadow.items[shadow.index];
+    shadow.revealed = true;
+    const s = $("shadow-sentence");
+    s.className = "shadow-sentence";
+    s.textContent = w.example;
+  }
+
+  function shadowSimilarity(target, heard) {
+    const norm = t => t.toLowerCase().replace(/[^a-z' ]/g, " ").split(/\s+/).filter(Boolean);
+    const tw = norm(target);
+    const hw = new Set(norm(heard));
+    const hits = tw.map(word => hw.has(word));
+    const score = tw.length ? hits.filter(Boolean).length / tw.length : 0;
+    return { score, words: tw, hits };
+  }
+
+  function micShadow() {
+    if (!SpeechRec || !shadow) return;
+    const w = shadow.items[shadow.index];
+    const btn = $("btn-shadow-mic");
+    if (recognizer) { recognizer.abort(); recognizer = null; btn.classList.remove("recording"); btn.textContent = "🎤 말하기"; return; }
+    speechSynthesis.cancel();
+    recognizer = new SpeechRec();
+    recognizer.lang = "en-US";
+    recognizer.interimResults = false;
+    recognizer.maxAlternatives = 1;
+    btn.classList.add("recording");
+    btn.textContent = "⏹ 듣는 중...";
+    const done = () => { btn.classList.remove("recording"); btn.textContent = "🎤 말하기"; recognizer = null; };
+    recognizer.onresult = e => {
+      done();
+      const heard = e.results[0][0].transcript;
+      const { score, words, hits } = shadowSimilarity(w.example, heard);
+      shadow.spoken = true;
+      const box = $("shadow-result");
+      box.hidden = false;
+      box.innerHTML = "";
+      const sc = document.createElement("div");
+      sc.className = "sr-score";
+      sc.textContent = score >= 0.8 ? `🎉 훌륭해요! (일치율 ${Math.round(score * 100)}%)`
+        : score >= 0.5 ? `👍 좋아요! (일치율 ${Math.round(score * 100)}%) 한 번 더 해볼까요?`
+        : `💪 다시 도전! (일치율 ${Math.round(score * 100)}%) — 인식이 부정확할 수 있으니 참고만 하세요`;
+      box.appendChild(sc);
+      // 문장 단어별 인식 여부 표시
+      const diff = document.createElement("div");
+      words.forEach((word, i) => {
+        const span = document.createElement("span");
+        span.className = hits[i] ? "word-hit" : "word-miss";
+        span.textContent = word + " ";
+        diff.appendChild(span);
+      });
+      box.appendChild(diff);
+      const heardEl = document.createElement("div");
+      heardEl.className = "sr-heard";
+      heardEl.textContent = "인식된 문장: " + heard;
+      box.appendChild(heardEl);
+      if (!shadow.revealed) revealShadow();
+    };
+    recognizer.onerror = e => {
+      done();
+      if (e.error === "not-allowed") toast("마이크 권한을 허용해주세요");
+      else if (e.error !== "aborted") toast("음성 인식 실패 — 다시 시도해주세요");
+    };
+    recognizer.onend = () => { if (recognizer) done(); };
+    try { recognizer.start(); } catch (e) { done(); }
+  }
+
+  $("btn-start-shadow").addEventListener("click", startShadow);
+  $("btn-shadow-play").addEventListener("click", () => shadow && speakRate(shadow.items[shadow.index].example, 0.85));
+  $("btn-shadow-slow").addEventListener("click", () => shadow && speakRate(shadow.items[shadow.index].example, 0.6));
+  $("btn-shadow-reveal").addEventListener("click", () => shadow && revealShadow());
+  $("btn-shadow-mic").addEventListener("click", micShadow);
+  $("btn-shadow-next").addEventListener("click", () => {
+    if (!shadow) return;
+    awardXp(2);
+    const log = Store.todayLog(state);
+    log.actions += 1;
+    Store.save(state);
+    shadow.index += 1;
+    if (shadow.index >= shadow.items.length) {
+      awardXp(10);
+      Store.save(state);
+      showSummary("🎧", "쉐도잉 완료!",
+        `<b>${shadow.items.length}</b>문장 연습<br>⚡ 획득 XP <b>+${shadow.items.length * 2 + 10}</b>`);
+      shadow = null;
+      syncPush(true);
+    } else {
+      renderShadow();
+    }
+  });
+  $("btn-shadow-exit").addEventListener("click", () => {
+    if (recognizer) { recognizer.abort(); recognizer = null; }
+    speechSynthesis.cancel();
+    shadow = null;
+    show("home");
+  });
 
   // ---------- 결과 화면 ----------
   function showSummary(emoji, title, statsHtml) {
