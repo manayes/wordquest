@@ -143,5 +143,150 @@ const AI = (() => {
     return result.questions;
   }
 
-  return { configured, generateMnemonic, generateExamples, generateQuizQuestions };
+  // ---------- 텍스트 응답 호출 (회화용, JSON 아님) ----------
+  async function chatRaw(state, systemPrompt, messages, maxTokens) {
+    const { apiKey, model } = config(state);
+    if (!apiKey) throw new Error("API 키가 설정되지 않았습니다.");
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: model || "claude-opus-5",
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        output_config: { effort: "low" },
+        messages,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      const msg = err && err.error ? err.error.message : `HTTP ${res.status}`;
+      if (res.status === 401) throw new Error("API 키가 올바르지 않습니다. AI 설정을 확인해주세요.");
+      if (res.status === 429) throw new Error("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+      throw new Error(`API 오류: ${msg}`);
+    }
+    const data = await res.json();
+    if (data.stop_reason === "refusal") throw new Error("AI가 이 요청을 처리할 수 없습니다.");
+    const textBlock = (data.content || []).find(b => b.type === "text");
+    if (!textBlock) throw new Error("AI 응답이 비어 있습니다.");
+    return textBlock.text.trim();
+  }
+
+  // ---------- AI 회화: 한 턴 진행 ----------
+  async function talkTurn(state, targetWords, history) {
+    const interest = config(state).interest || "일상";
+    const wordList = targetWords.map(w => `${w.word} (${w.meaning})`).join(", ");
+    const system =
+      "You are a friendly English conversation partner helping a Korean intermediate learner practice. " +
+      `Topic area: ${interest}. The learner is currently studying these words: ${wordList}. ` +
+      "Rules: (1) Keep each reply to 2-3 short, simple sentences. " +
+      "(2) Always end with one easy question to keep the conversation going. " +
+      "(3) Naturally use the target words yourself and create openings for the learner to use them. " +
+      "(4) Do NOT correct the learner's mistakes during the conversation. " +
+      "(5) Be warm, casual, and encouraging. English only.";
+    // 최근 12개 메시지만 전송 (비용 절약)
+    const trimmed = history.slice(-12);
+    return chatRaw(state, system, trimmed, 400);
+  }
+
+  // ---------- AI 회화: 종료 후 교정 리포트 ----------
+  async function correctionReport(state, sentences) {
+    const schema = {
+      type: "object",
+      properties: {
+        corrections: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              original: { type: "string" },
+              better: { type: "string" },
+              note: { type: "string" },
+            },
+            required: ["original", "better", "note"],
+            additionalProperties: false,
+          },
+        },
+        comment: { type: "string" },
+      },
+      required: ["corrections", "comment"],
+      additionalProperties: false,
+    };
+    return request(
+      state,
+      "당신은 다정한 영어 선생님입니다. 학습자가 영어 대화에서 쓴 문장들을 검토해주세요. " +
+      "개선이 필요한 문장만 골라(최대 5개) original(원문), better(더 자연스러운 표현), note(한국어 한 줄 설명)로 정리하세요. " +
+      "완벽한 문장은 corrections에 넣지 마세요. comment에는 잘한 점을 포함한 전체 총평을 한국어 1~2문장으로 써주세요.",
+      "학습자의 문장들:\n" + sentences.map((s, i) => `${i + 1}. ${s}`).join("\n"),
+      schema,
+      2000
+    );
+  }
+
+  // ---------- 영작 연습: 문제 생성 ----------
+  async function makeWritingItems(state, words) {
+    const interest = config(state).interest || "일상";
+    const schema = {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { word: { type: "string" }, ko: { type: "string" } },
+            required: ["word", "ko"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["items"],
+      additionalProperties: false,
+    };
+    const list = words.map(w => `- ${w.word}: ${w.meaning}`).join("\n");
+    return (await request(
+      state,
+      "당신은 영작 문제 출제자입니다. 각 영어 단어에 대해, 학습자가 그 단어를 사용해 영어로 옮길 " +
+      `자연스러운 한국어 문장을 1개씩 만들어주세요. '${interest}' 상황을 활용하세요. ` +
+      "조건: (1) 해당 단어의 주어진 뜻이 문장에 반드시 반영될 것, " +
+      "(2) 영어로 옮기면 8~14단어 수준의 문장일 것, (3) 한국어 문장에 영어 단어를 쓰지 말 것.",
+      `단어 목록:\n${list}`,
+      schema,
+      1500
+    )).items;
+  }
+
+  // ---------- 영작 연습: 채점 ----------
+  async function gradeWriting(state, word, koSentence, answer) {
+    const schema = {
+      type: "object",
+      properties: {
+        result: { type: "string", enum: ["good", "ok", "wrong"] },
+        corrected: { type: "string" },
+        note: { type: "string" },
+      },
+      required: ["result", "corrected", "note"],
+      additionalProperties: false,
+    };
+    return request(
+      state,
+      "당신은 다정하지만 정확한 영작 채점자입니다. 학습자가 한국어 문장을 영어로 옮겼습니다. " +
+      "채점 기준 - good: 목표 단어를 사용했고 자연스럽고 정확함 / " +
+      "ok: 의미는 통하지만 어색하거나 사소한 오류가 있음 / " +
+      "wrong: 문법·의미 오류가 크거나 목표 단어를 쓰지 않음. " +
+      "corrected에는 가장 자연스러운 모범 영문을, note에는 한국어 1~2문장의 구체적 피드백을 써주세요.",
+      `목표 단어: ${word.word} (${word.meaning})\n한국어 문장: ${koSentence}\n학습자의 영작: ${answer}`,
+      schema,
+      1000
+    );
+  }
+
+  return {
+    configured, generateMnemonic, generateExamples, generateQuizQuestions,
+    talkTurn, correctionReport, makeWritingItems, gradeWriting,
+  };
 })();

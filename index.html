@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WordQuest — 나의 영어 단어장</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <div class="app">
@@ -64,6 +64,10 @@
       <span class="btn-sub" id="study-preview"></span>
     </button>
     <button class="btn btn-secondary" id="btn-start-quiz">🎯 퀴즈 풀기</button>
+    <div class="practice-row">
+      <button class="btn btn-secondary half" id="btn-start-talk">🗣️ AI 회화</button>
+      <button class="btn btn-secondary half" id="btn-start-write">✏️ 영작 연습</button>
+    </div>
 
     <div class="settings-row">
       <label for="sel-new-per-day">하루 새 단어</label>
@@ -140,6 +144,39 @@
     <button class="btn btn-primary" id="btn-quiz-next" hidden>다음 문제</button>
   </section>
 
+  <!-- AI 회화 화면 -->
+  <section id="screen-talk" class="screen" hidden>
+    <div class="topbar">
+      <button class="btn-icon" id="btn-talk-exit" title="홈으로">←</button>
+      <div class="talk-title">🗣️ AI 회화</div>
+      <button class="btn-mini" id="btn-talk-finish">교정받고 종료</button>
+    </div>
+    <div class="talk-words" id="talk-words"></div>
+    <div class="talk-messages" id="talk-messages"></div>
+    <div class="talk-input-row">
+      <input type="text" id="talk-input" placeholder="영어로 대답해보세요..." autocomplete="off">
+      <button class="btn btn-primary" id="btn-talk-send">전송</button>
+    </div>
+  </section>
+
+  <!-- 영작 연습 화면 -->
+  <section id="screen-write" class="screen" hidden>
+    <div class="topbar">
+      <button class="btn-icon" id="btn-write-exit" title="홈으로">←</button>
+      <div class="session-progress-bg"><div class="session-progress" id="write-progress"></div></div>
+      <span class="session-count" id="write-count"></span>
+    </div>
+    <div class="card write-card">
+      <div class="card-badge" id="write-badge">✏️ 영작 연습</div>
+      <div class="write-ko" id="write-ko"></div>
+      <div class="write-hint" id="write-hint"></div>
+      <textarea id="write-input" rows="3" placeholder="영어로 작문해보세요" autocomplete="off" spellcheck="false"></textarea>
+      <button class="btn btn-primary" id="btn-write-submit">제출</button>
+      <div class="write-feedback" id="write-feedback" hidden></div>
+    </div>
+    <button class="btn btn-primary" id="btn-write-next" hidden>다음 문제</button>
+  </section>
+
   <!-- 결과 화면 -->
   <section id="screen-summary" class="screen" hidden>
     <div class="summary-card">
@@ -205,14 +242,14 @@
 
 <div id="toast-container"></div>
 
-<script src="data/words.js?v=5"></script>
-<script src="data/words_toeic.js?v=5"></script>
-<script src="js/srs.js?v=5"></script>
-<script src="js/store.js?v=5"></script>
-<script src="js/game.js?v=5"></script>
-<script src="js/quiz.js?v=5"></script>
-<script src="js/ai.js?v=5"></script>
-<script src="js/sync.js?v=5"></script>
-<script src="js/app.js?v=5"></script>
+<script src="data/words.js?v=6"></script>
+<script src="data/words_toeic.js?v=6"></script>
+<script src="js/srs.js?v=6"></script>
+<script src="js/store.js?v=6"></script>
+<script src="js/game.js?v=6"></script>
+<script src="js/quiz.js?v=6"></script>
+<script src="js/ai.js?v=6"></script>
+<script src="js/sync.js?v=6"></script>
+<script src="js/app.js?v=6"></script>
 </body>
 </html>

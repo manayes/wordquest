@@ -496,6 +496,124 @@ body {
 .modal-buttons { display: flex; gap: 8px; margin-top: 10px; }
 .modal-buttons .btn { flex: 1; padding: 11px; }
 
+/* ---------- AI 회화 ---------- */
+.practice-row { display: flex; gap: 8px; }
+.practice-row .half { flex: 1; padding: 12px 8px; font-size: 0.92rem; }
+
+.talk-title { flex: 1; font-weight: 800; }
+.btn-mini {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-mini:disabled { opacity: 0.5; cursor: default; }
+
+.talk-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+.talk-word-chip {
+  background: #eef1fd;
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-weight: 700;
+}
+
+.talk-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+.talk-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.talk-bubble.ai {
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.talk-bubble.user {
+  background: var(--primary);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.talk-bubble .bubble-tts {
+  background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 0 0 0 6px;
+}
+.talk-bubble.report {
+  max-width: 100%;
+  align-self: stretch;
+  background: #f8f7fe;
+  border: 1px solid #e6e1fa;
+}
+.talk-bubble.report .rep-title { font-weight: 800; color: #6d5bd0; margin-bottom: 8px; }
+.talk-bubble.report .rep-orig { color: #b91c1c; text-decoration: line-through; font-size: 0.88rem; }
+.talk-bubble.report .rep-better { color: #15803d; font-weight: 600; font-size: 0.92rem; }
+.talk-bubble.report .rep-note { color: var(--text-sub); font-size: 0.82rem; margin-bottom: 8px; }
+.talk-bubble.report .rep-comment { margin-top: 6px; font-size: 0.9rem; }
+
+.talk-input-row { display: flex; gap: 8px; }
+.talk-input-row input {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 2px solid #d6dcea;
+  border-radius: 12px;
+  outline: none;
+}
+.talk-input-row input:focus { border-color: var(--primary); }
+.talk-input-row .btn { padding: 12px 18px; }
+
+/* ---------- 영작 연습 ---------- */
+.write-card { justify-content: flex-start; gap: 12px; }
+.write-ko { font-size: 1.15rem; font-weight: 700; line-height: 1.6; word-break: keep-all; }
+.write-hint { font-size: 0.85rem; color: var(--primary); font-weight: 700; }
+.write-card textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 2px solid #d6dcea;
+  border-radius: 12px;
+  outline: none;
+  resize: none;
+}
+.write-card textarea:focus { border-color: var(--primary); }
+.write-feedback {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8f7fe;
+  border: 1px solid #e6e1fa;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.write-feedback .wf-result { font-weight: 800; margin-bottom: 6px; }
+.write-feedback .wf-corrected { color: #15803d; font-weight: 600; }
+.write-feedback .wf-note { color: var(--text-sub); font-size: 0.85rem; margin-top: 4px; }
+
 /* ---------- 토스트 알림 ---------- */
 #toast-container {
   position: fixed;

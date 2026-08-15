@@ -22,7 +22,7 @@
   });
 
   // ---------- 화면 전환 ----------
-  const screens = ["home", "study", "quiz", "summary"];
+  const screens = ["home", "study", "quiz", "talk", "write", "summary"];
   function show(name) {
     screens.forEach(s => { $(`screen-${s}`).hidden = (s !== name); });
     if (name === "home") renderHome();
@@ -624,6 +624,273 @@
 
   $("btn-quiz-exit").addEventListener("click", () => { quiz = null; show("home"); });
   $("btn-start-quiz").addEventListener("click", startQuiz);
+
+  // ---------- AI 회화 ----------
+  let talk = null; // {words, history, userCount, busy, finished}
+
+  function recentLearnedWords(n) {
+    // 학습 순서(입력 순서)상 가장 최근에 배운 단어들 (같은 철자는 한 번만)
+    const ids = Object.keys(state.cards).map(Number);
+    const words = ids.map(id => wordById.get(id)).filter(w => w && inDeck(w));
+    const seen = new Set();
+    const unique = [];
+    for (let i = words.length - 1; i >= 0 && unique.length < n; i--) {
+      const key = words[i].word.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.unshift(words[i]);
+    }
+    return unique;
+  }
+
+  function requireAi() {
+    if (AI.configured(state)) return true;
+    toast("먼저 Claude API 키를 설정해주세요");
+    $("ai-modal").hidden = false;
+    return false;
+  }
+
+  function addBubble(role, text) {
+    const div = document.createElement("div");
+    div.className = "talk-bubble " + role;
+    div.textContent = text;
+    if (role === "ai") {
+      const tts = document.createElement("button");
+      tts.className = "bubble-tts";
+      tts.textContent = "🔊";
+      tts.addEventListener("click", () => speak(text));
+      div.appendChild(tts);
+    }
+    $("talk-messages").appendChild(div);
+    $("talk-messages").scrollTop = $("talk-messages").scrollHeight;
+    return div;
+  }
+
+  async function startTalk() {
+    if (!requireAi()) return;
+    const words = recentLearnedWords(5);
+    if (words.length < 3) {
+      toast("먼저 '오늘의 학습'으로 단어를 3개 이상 배워주세요");
+      return;
+    }
+    talk = { words, history: [], userCount: 0, busy: false, finished: false };
+    $("talk-messages").innerHTML = "";
+    $("talk-words").innerHTML = "";
+    for (const w of words) {
+      const chip = document.createElement("span");
+      chip.className = "talk-word-chip";
+      chip.textContent = w.word;
+      chip.title = w.meaning;
+      $("talk-words").appendChild(chip);
+    }
+    $("talk-input").value = "";
+    $("btn-talk-finish").disabled = true;
+    show("talk");
+    // 첫 인사 요청 (킥오프 메시지는 화면에 표시하지 않음)
+    talk.history.push({ role: "user", content: "Hi! Please start our conversation with a friendly greeting and one easy question." });
+    const loading = addBubble("ai", "...");
+    try {
+      const reply = await AI.talkTurn(state, talk.words, talk.history);
+      if (!talk) return;
+      talk.history.push({ role: "assistant", content: reply });
+      loading.remove();
+      addBubble("ai", reply);
+      $("talk-input").focus();
+    } catch (e) {
+      loading.remove();
+      addBubble("ai", "⚠️ " + e.message);
+    }
+  }
+
+  async function sendTalk() {
+    if (!talk || talk.busy || talk.finished) return;
+    const text = $("talk-input").value.trim();
+    if (!text) return;
+    talk.busy = true;
+    $("talk-input").value = "";
+    addBubble("user", text);
+    talk.history.push({ role: "user", content: text });
+    talk.userCount += 1;
+    $("btn-talk-finish").disabled = false;
+    const loading = addBubble("ai", "...");
+    try {
+      const reply = await AI.talkTurn(state, talk.words, talk.history);
+      if (!talk) return;
+      talk.history.push({ role: "assistant", content: reply });
+      loading.remove();
+      addBubble("ai", reply);
+    } catch (e) {
+      loading.remove();
+      addBubble("ai", "⚠️ " + e.message);
+      talk.history.pop(); // 실패한 턴 제거 (다시 시도 가능)
+      talk.userCount -= 1;
+    } finally {
+      if (talk) { talk.busy = false; $("talk-input").focus(); }
+    }
+  }
+
+  async function finishTalk() {
+    if (!talk || talk.busy || talk.finished || talk.userCount < 1) return;
+    talk.busy = true;
+    $("btn-talk-finish").disabled = true;
+    const sentences = talk.history.filter((m, i) => i > 0 && m.role === "user").map(m => m.content);
+    const loading = addBubble("ai", "📝 교정 리포트 작성 중...");
+    try {
+      const report = await AI.correctionReport(state, sentences);
+      if (!talk) return;
+      loading.remove();
+      const div = document.createElement("div");
+      div.className = "talk-bubble report";
+      const title = document.createElement("div");
+      title.className = "rep-title";
+      title.textContent = "📝 교정 리포트";
+      div.appendChild(title);
+      if (report.corrections.length === 0) {
+        const p = document.createElement("div");
+        p.textContent = "🎉 교정할 문장이 없어요! 훌륭합니다.";
+        div.appendChild(p);
+      }
+      for (const c of report.corrections) {
+        const o = document.createElement("div"); o.className = "rep-orig"; o.textContent = c.original;
+        const b = document.createElement("div"); b.className = "rep-better"; b.textContent = "→ " + c.better;
+        const n = document.createElement("div"); n.className = "rep-note"; n.textContent = c.note;
+        div.appendChild(o); div.appendChild(b); div.appendChild(n);
+      }
+      const cm = document.createElement("div");
+      cm.className = "rep-comment";
+      cm.textContent = "💬 " + report.comment;
+      div.appendChild(cm);
+      $("talk-messages").appendChild(div);
+      $("talk-messages").scrollTop = $("talk-messages").scrollHeight;
+      talk.finished = true;
+      awardXp(20);
+      Store.save(state);
+      toast("🗣️ 회화 완료! +20XP");
+      syncPush(true);
+    } catch (e) {
+      loading.remove();
+      addBubble("ai", "⚠️ " + e.message);
+      $("btn-talk-finish").disabled = false;
+    } finally {
+      if (talk) talk.busy = false;
+    }
+  }
+
+  $("btn-start-talk").addEventListener("click", startTalk);
+  $("btn-talk-send").addEventListener("click", sendTalk);
+  $("talk-input").addEventListener("keydown", e => { if (e.key === "Enter") sendTalk(); });
+  $("btn-talk-finish").addEventListener("click", finishTalk);
+  $("btn-talk-exit").addEventListener("click", () => { talk = null; show("home"); });
+
+  // ---------- 영작 연습 ----------
+  let write = null; // {items, index, good, ok}
+
+  async function startWrite() {
+    if (!requireAi()) return;
+    const studied = Object.keys(state.cards).map(id => wordById.get(Number(id))).filter(w => w && inDeck(w));
+    if (studied.length < 3) {
+      toast("먼저 '오늘의 학습'으로 단어를 3개 이상 배워주세요");
+      return;
+    }
+    // 자주 틀린 단어 우선, 나머지는 최근 학습 단어로 채움
+    const weak = studied.filter(w => state.cards[w.id].wrong > 0);
+    const pick = [...Quiz.shuffle(weak), ...studied.slice().reverse().filter(w => !weak.includes(w))].slice(0, 5);
+    show("write");
+    $("write-ko").textContent = "✏️ 문제 생성 중...";
+    $("write-hint").textContent = "";
+    $("write-input").value = "";
+    $("write-input").disabled = true;
+    $("btn-write-submit").disabled = true;
+    $("write-feedback").hidden = true;
+    $("btn-write-next").hidden = true;
+    try {
+      const items = await AI.makeWritingItems(state, pick);
+      const byWord = new Map(pick.map(w => [w.word.toLowerCase(), w]));
+      const valid = items.filter(it => byWord.has((it.word || "").toLowerCase()))
+        .map(it => ({ ko: it.ko, target: byWord.get(it.word.toLowerCase()) }));
+      if (valid.length === 0) throw new Error("문제 생성에 실패했습니다. 다시 시도해주세요.");
+      write = { items: valid, index: 0, good: 0, ok: 0 };
+      renderWrite();
+    } catch (e) {
+      toast("⚠️ " + e.message);
+      show("home");
+    }
+  }
+
+  function renderWrite() {
+    const it = write.items[write.index];
+    $("write-badge").textContent = "✏️ 영작 연습";
+    $("write-ko").textContent = it.ko;
+    $("write-hint").textContent = `사용할 단어: ${it.target.word} (${it.target.meaning})`;
+    $("write-input").value = "";
+    $("write-input").disabled = false;
+    $("btn-write-submit").disabled = false;
+    $("btn-write-submit").hidden = false;
+    $("write-feedback").hidden = true;
+    $("btn-write-next").hidden = true;
+    $("write-progress").style.width = `${write.index / write.items.length * 100}%`;
+    $("write-count").textContent = `${write.index + 1}/${write.items.length}`;
+    $("write-input").focus();
+  }
+
+  async function submitWrite() {
+    if (!write) return;
+    const answer = $("write-input").value.trim();
+    if (!answer) return;
+    const it = write.items[write.index];
+    $("btn-write-submit").disabled = true;
+    $("write-input").disabled = true;
+    const fb = $("write-feedback");
+    fb.hidden = false;
+    fb.innerHTML = "채점 중...";
+    try {
+      const g = await AI.gradeWriting(state, it.target, it.ko, answer);
+      if (!write) return;
+      fb.innerHTML = "";
+      const res = document.createElement("div");
+      res.className = "wf-result";
+      if (g.result === "good") { res.textContent = "✅ 훌륭해요! +5XP"; write.good++; awardXp(5); }
+      else if (g.result === "ok") { res.textContent = "🟡 좋아요! 조금 더 다듬으면 완벽해요 +3XP"; write.ok++; awardXp(3); }
+      else {
+        res.textContent = "❌ 다시 볼까요? 이 단어는 오늘 복습에 추가됩니다";
+        state.cards[it.target.id] = { ...state.cards[it.target.id], due: SRS.todayStr() };
+      }
+      const cor = document.createElement("div");
+      cor.className = "wf-corrected";
+      cor.textContent = "모범: " + g.corrected;
+      const note = document.createElement("div");
+      note.className = "wf-note";
+      note.textContent = g.note;
+      fb.appendChild(res); fb.appendChild(cor); fb.appendChild(note);
+      Store.save(state);
+      $("btn-write-submit").hidden = true;
+      $("btn-write-next").hidden = false;
+      $("btn-write-next").focus();
+    } catch (e) {
+      fb.innerHTML = "";
+      fb.textContent = "⚠️ " + e.message;
+      $("btn-write-submit").disabled = false;
+      $("write-input").disabled = false;
+    }
+  }
+
+  $("btn-start-write").addEventListener("click", startWrite);
+  $("btn-write-submit").addEventListener("click", submitWrite);
+  $("btn-write-next").addEventListener("click", () => {
+    write.index += 1;
+    if (write.index >= write.items.length) {
+      awardXp(15);
+      Store.save(state);
+      const total = write.items.length;
+      showSummary("✏️", "영작 연습 완료!",
+        `<b>${total}</b>문제 중 훌륭 <b>${write.good}</b> · 양호 <b>${write.ok}</b><br>⚡ 완료 보너스 <b>+15XP</b>`);
+      write = null;
+      syncPush(true);
+    } else {
+      renderWrite();
+    }
+  });
+  $("btn-write-exit").addEventListener("click", () => { write = null; show("home"); });
 
   // ---------- 결과 화면 ----------
   function showSummary(emoji, title, statsHtml) {
