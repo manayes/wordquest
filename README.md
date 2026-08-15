@@ -1,7 +1,11 @@
 # WordQuest — 나의 영어 단어장
 
-`영어단어장.csv`의 단어 3,167개로 학습하는 영어 단어 암기 웹 앱.
-설치가 필요 없습니다 — 브라우저만 있으면 실행됩니다.
+영어 단어 암기 웹 앱. 설치가 필요 없습니다 — 브라우저만 있으면 실행됩니다.
+
+**단어장 구성** (홈 화면 상단 탭에서 선택):
+- 📕 **내 단어장** (3,167개): `영어단어장.csv` — 말해보카에서 외우지 못한 단어 모음
+- 📗 **TOEIC** (451개): 주제별 TOEIC 빈출 어휘 (`build_toeic.py`로 생성, 내 단어장과 중복 제외)
+- **전체**: 두 단어장 합산
 
 ## 실행 방법
 
@@ -67,8 +71,10 @@ API 키 발급: https://platform.claude.com → API Keys
 ```
 index.html        앱 진입점 (더블클릭으로 실행)
 style.css         디자인
-convert_csv.py    CSV -> 앱 데이터 변환 스크립트
-data/words.js     변환된 단어 데이터 (자동 생성)
+convert_csv.py    CSV -> 앱 데이터 변환 스크립트 (내 단어장)
+build_toeic.py    TOEIC 어휘 목록 + 데이터 생성 스크립트
+data/words.js     내 단어장 데이터 (자동 생성)
+data/words_toeic.js  TOEIC 단어 데이터 (자동 생성)
 js/srs.js         간격 반복(SRS) 엔진
 js/store.js       학습 기록 저장 (localStorage)
 js/game.js        게임화 (XP/레벨/스트릭/퀘스트)

@@ -3,7 +3,23 @@
 (() => {
   const state = Store.load();
   const $ = id => document.getElementById(id);
-  const wordById = new Map(WORDS.map(w => [w.id, w]));
+  const ALL_WORDS = WORDS.concat(typeof WORDS_TOEIC !== "undefined" ? WORDS_TOEIC : []);
+  const wordById = new Map(ALL_WORDS.map(w => [w.id, w]));
+
+  // ---------- 단어장(덱) 선택 ----------
+  function inDeck(w) {
+    const d = state.settings.deck || "all";
+    return d === "all" || (w.deck || "vocab") === d;
+  }
+  function activeWords() { return ALL_WORDS.filter(inDeck); }
+
+  $("deck-tabs").addEventListener("click", e => {
+    const btn = e.target.closest("[data-deck]");
+    if (!btn) return;
+    state.settings.deck = btn.dataset.deck;
+    Store.save(state);
+    renderHome();
+  });
 
   // ---------- 화면 전환 ----------
   const screens = ["home", "study", "quiz", "summary"];
@@ -56,13 +72,13 @@
     return Object.entries(state.cards)
       .filter(([, c]) => c.due <= t)
       .map(([id]) => wordById.get(Number(id)))
-      .filter(Boolean);
+      .filter(w => w && inDeck(w));
   }
 
   function newWordsAvailable(limit) {
     const out = [];
     if (limit <= 0) return out;
-    for (const w of WORDS) {
+    for (const w of activeWords()) {
       if (!state.cards[w.id]) {
         out.push(w);
         if (out.length >= limit) break;
@@ -77,9 +93,17 @@
   }
 
   function renderHome() {
-    const learned = Object.keys(state.cards).length;
-    let seed = 0, grow = 0, master = 0;
-    for (const c of Object.values(state.cards)) {
+    // 덱 탭 활성화 표시
+    document.querySelectorAll(".deck-tab").forEach(b => {
+      b.classList.toggle("active", b.dataset.deck === (state.settings.deck || "all"));
+    });
+
+    const deckWords = activeWords();
+    let learned = 0, seed = 0, grow = 0, master = 0;
+    for (const [id, c] of Object.entries(state.cards)) {
+      const w = wordById.get(Number(id));
+      if (!w || !inDeck(w)) continue;
+      learned++;
       const st = SRS.stage(c);
       if (st === "master") master++;
       else if (st === "grow") grow++;
@@ -88,14 +112,14 @@
     const due = dueCards().length;
     const newCount = Math.min(remainingNewToday(), newWordsAvailable(state.settings.newPerDay).length);
 
-    $("stat-total").textContent = WORDS.length.toLocaleString();
+    $("stat-total").textContent = deckWords.length.toLocaleString();
     $("stat-learned").textContent = learned.toLocaleString();
     $("stat-due").textContent = due;
     $("stat-master").textContent = master;
     $("stat-seed").textContent = seed;
     $("stat-grow").textContent = grow;
     $("stat-tree").textContent = master;
-    const pct = WORDS.length ? (learned / WORDS.length * 100) : 0;
+    const pct = deckWords.length ? (learned / deckWords.length * 100) : 0;
     $("learn-progress").style.width = `${Math.max(pct, learned > 0 ? 1 : 0)}%`;
     $("progress-caption").textContent = `전체 진도 ${pct.toFixed(1)}%`;
 
@@ -448,9 +472,9 @@
   let quiz = null; // {questions, index, correct}
 
   async function startQuiz() {
-    const studied = Object.keys(state.cards).map(id => wordById.get(Number(id))).filter(Boolean);
-    const pool = studied.length >= 4 ? studied : WORDS;
-    const questions = Quiz.makeQuizSet(pool, WORDS, 10);
+    const studied = Object.keys(state.cards).map(id => wordById.get(Number(id))).filter(w => w && inDeck(w));
+    const pool = studied.length >= 4 ? studied : activeWords();
+    const questions = Quiz.makeQuizSet(pool, activeWords(), 10);
     if (questions.length === 0) return;
     quiz = { questions, index: 0, correct: 0 };
     show("quiz");

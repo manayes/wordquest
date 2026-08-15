@@ -8,6 +8,7 @@ const Store = (() => {
       cards: {},                    // wordId -> SRS 카드 상태
       settings: {
         newPerDay: 10,
+        deck: "all",              // 학습 대상 단어장: all | vocab | toeic
         ai: { apiKey: "", model: "claude-opus-5", interest: "일상" },
         sync: { token: "", gistId: "" },
       },

@@ -29,6 +29,7 @@ with open(SRC, encoding="utf-8-sig", newline="") as f:
             "ipa": ipa,
             "meaning": meaning,
             "example": example,
+            "deck": "vocab",  # 내 단어장 (말해보카 오답 모음)
         })
 
 os.makedirs(os.path.dirname(DST), exist_ok=True)

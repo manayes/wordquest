@@ -300,6 +300,30 @@ body {
 .summary-stats { color: var(--text-sub); font-size: 1rem; line-height: 1.8; }
 .summary-stats b { color: var(--text); font-size: 1.1rem; }
 
+/* ---------- 단어장(덱) 탭 ---------- */
+.deck-tabs {
+  display: flex;
+  gap: 6px;
+}
+.deck-tab {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1.5px solid #d6dcea;
+  border-radius: 12px;
+  background: var(--card-bg);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.deck-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 /* ---------- 게임화: 플레이어 카드 ---------- */
 .player-card {
   background: linear-gradient(135deg, #2b3564, #4f6df5);
