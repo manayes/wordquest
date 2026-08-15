@@ -211,8 +211,17 @@
   function startStudy() {
     const reviews = Quiz.shuffle(dueCards()).map(w => ({ word: w, isNew: false }));
     const news = newWordsAvailable(remainingNewToday()).map(w => ({ word: w, isNew: true }));
-    const queue = [...reviews, ...news];
-    if (queue.length === 0) return;
+    let queue = [...reviews, ...news];
+    if (queue.length === 0) {
+      // 오늘 목표를 이미 채운 경우: 안내하고 추가 학습 제안
+      const extra = newWordsAvailable(state.settings.newPerDay);
+      if (extra.length === 0) {
+        toast("🎉 이 단어장의 모든 단어를 학습했습니다!");
+        return;
+      }
+      if (!confirm(`오늘 목표를 모두 마쳤습니다! 새 단어 ${extra.length}개를 추가로 학습할까요?`)) return;
+      queue = extra.map(w => ({ word: w, isNew: true }));
+    }
     session = { queue, done: 0, total: queue.length, newIntroduced: new Set(), reviewedCount: 0, xpEarned: 0 };
     show("study");
     renderStudyCard();
