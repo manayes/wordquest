@@ -689,7 +689,8 @@ body {
 
 /* ---------- 모바일: 홈 화면을 한 화면에 압축 (반드시 파일 끝에 위치) ---------- */
 @media (max-width: 780px) {
-  .app { height: 100dvh; padding: 8px 12px 10px; }
+  /* 100%는 키보드가 올라오면(resizes-content) 함께 줄어들지만 100dvh는 줄지 않음 */
+  .app { height: 100%; padding: 8px 12px 10px; }
   .screen { gap: clamp(5px, 0.9vh, 8px); }
   .home-layout { display: flex; flex-direction: column; align-items: stretch; gap: clamp(5px, 0.9vh, 8px); flex: 1; min-height: 0; }
   .home-left, .home-right { gap: clamp(5px, 0.9vh, 8px); }

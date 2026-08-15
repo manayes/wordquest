@@ -786,7 +786,18 @@
     m.scrollTop = m.scrollHeight;
   }
   if (window.visualViewport) {
+    // 키보드가 올라오면 앱 높이를 실제 보이는 영역에 맞춤 (dvh는 키보드를 반영하지 않음)
     window.visualViewport.addEventListener("resize", () => {
+      if (window.innerWidth <= 780) {
+        const app = document.querySelector(".app");
+        const vvh = Math.round(window.visualViewport.height);
+        if (vvh < window.innerHeight - 50) {
+          app.style.height = vvh + "px"; // 키보드 열림
+          window.scrollTo(0, 0);
+        } else {
+          app.style.height = ""; // 키보드 닫힘 -> CSS 기본값 복귀
+        }
+      }
       if (talk && !$("screen-talk").hidden) setTimeout(scrollTalkToBottom, 50);
     });
   }
