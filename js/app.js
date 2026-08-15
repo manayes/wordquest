@@ -779,6 +779,20 @@
   $("btn-start-talk").addEventListener("click", startTalk);
   $("btn-talk-send").addEventListener("click", sendTalk);
   $("talk-input").addEventListener("keydown", e => { if (e.key === "Enter") sendTalk(); });
+
+  // 모바일: 키보드가 올라와 화면이 줄어들면 최신 메시지가 보이도록 자동 스크롤
+  function scrollTalkToBottom() {
+    const m = $("talk-messages");
+    m.scrollTop = m.scrollHeight;
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      if (talk && !$("screen-talk").hidden) setTimeout(scrollTalkToBottom, 50);
+    });
+  }
+  $("talk-input").addEventListener("focus", () => {
+    setTimeout(scrollTalkToBottom, 300); // 키보드 애니메이션 후
+  });
   $("btn-talk-finish").addEventListener("click", finishTalk);
   $("btn-talk-exit").addEventListener("click", () => { talk = null; show("home"); });
 
