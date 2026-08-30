@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <title>WordQuest — 나의 영어 단어장</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4f6df5">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
@@ -274,5 +278,11 @@
 <script src="js/ai.js?v=12"></script>
 <script src="js/sync.js?v=12"></script>
 <script src="js/app.js?v=12"></script>
+<script>
+// PWA: 서비스워커 등록 (설치형 앱 + 오프라인 지원)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
 </body>
 </html>
