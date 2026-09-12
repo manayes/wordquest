@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4f6df5">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 <div class="app">
@@ -24,8 +24,9 @@
     <div class="home-left">
     <div class="deck-tabs" id="deck-tabs">
       <button class="deck-tab" data-deck="all">전체</button>
-      <button class="deck-tab" data-deck="vocab">📕 내 단어장</button>
+      <button class="deck-tab" data-deck="vocab">📕 단어</button>
       <button class="deck-tab" data-deck="toeic">📗 TOEIC</button>
+      <button class="deck-tab" data-deck="sentence">💬 문장</button>
     </div>
     <div class="player-card">
       <div class="level-badge" id="level-badge">Lv.1</div>
@@ -143,6 +144,11 @@
       <div class="quiz-spelling" id="quiz-spelling" hidden>
         <input type="text" id="spelling-input" placeholder="영어 단어를 입력하세요" autocomplete="off" spellcheck="false">
         <button class="btn btn-primary" id="btn-spelling-submit">확인</button>
+      </div>
+      <div class="quiz-assemble" id="quiz-assemble" hidden>
+        <div class="assemble-built" id="assemble-built"></div>
+        <div class="assemble-tiles" id="assemble-tiles"></div>
+        <button class="btn-shadow" id="btn-assemble-undo">↩ 되돌리기</button>
       </div>
       <div class="quiz-feedback" id="quiz-feedback" hidden></div>
     </div>
@@ -269,15 +275,16 @@
 
 <div id="toast-container"></div>
 
-<script src="data/words.js?v=12"></script>
-<script src="data/words_toeic.js?v=12"></script>
-<script src="js/srs.js?v=12"></script>
-<script src="js/store.js?v=12"></script>
-<script src="js/game.js?v=12"></script>
-<script src="js/quiz.js?v=12"></script>
-<script src="js/ai.js?v=12"></script>
-<script src="js/sync.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
+<script src="data/words.js?v=13"></script>
+<script src="data/words_toeic.js?v=13"></script>
+<script src="data/sentences.js?v=13"></script>
+<script src="js/srs.js?v=13"></script>
+<script src="js/store.js?v=13"></script>
+<script src="js/game.js?v=13"></script>
+<script src="js/quiz.js?v=13"></script>
+<script src="js/ai.js?v=13"></script>
+<script src="js/sync.js?v=13"></script>
+<script src="js/app.js?v=13"></script>
 <script>
 // PWA: 서비스워커 등록 (설치형 앱 + 오프라인 지원)
 if ("serviceWorker" in navigator) {

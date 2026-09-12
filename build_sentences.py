@@ -1,0 +1,266 @@
+# -*- coding: utf-8 -*-
+"""실전 회화 패턴 문장 -> data/sentences.js 생성
+실행: python build_sentences.py
+"""
+import json, os
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+
+# (카테고리, 영어 문장, 한국어 뜻)
+SENTENCES = [
+    # ===== 인사 / 스몰토크 =====
+    ("인사/스몰토크", "How's it going?", "요즘 어떻게 지내?"),
+    ("인사/스몰토크", "Long time no see! How have you been?", "오랜만이야! 그동안 어떻게 지냈어?"),
+    ("인사/스몰토크", "It's so nice to finally meet you in person.", "드디어 직접 만나 뵙게 되어 정말 반가워요."),
+    ("인사/스몰토크", "I've heard a lot about you.", "말씀 많이 들었어요."),
+    ("인사/스몰토크", "What have you been up to lately?", "요즘 뭐 하고 지냈어?"),
+    ("인사/스몰토크", "The weather is amazing today, isn't it?", "오늘 날씨 정말 좋네요, 그렇죠?"),
+    ("인사/스몰토크", "Did you have a good weekend?", "주말 잘 보내셨어요?"),
+    ("인사/스몰토크", "I should get going now.", "이제 가봐야 할 것 같아요."),
+    ("인사/스몰토크", "It was great catching up with you.", "오랜만에 얘기 나눠서 정말 좋았어요."),
+    ("인사/스몰토크", "Let's keep in touch.", "계속 연락하고 지내요."),
+    ("인사/스몰토크", "Say hello to your family for me.", "가족들에게 안부 전해줘."),
+    ("인사/스몰토크", "Have a great rest of your day.", "남은 하루도 잘 보내세요."),
+    ("인사/스몰토크", "How was your day?", "오늘 하루 어땠어?"),
+    ("인사/스몰토크", "Is this seat taken?", "이 자리에 누구 있나요?"),
+    ("인사/스몰토크", "Do you come here often?", "여기 자주 오세요?"),
+    ("인사/스몰토크", "Time flies, doesn't it?", "시간 정말 빠르네요, 그렇죠?"),
+    ("인사/스몰토크", "I didn't catch your name.", "성함을 못 들었어요."),
+    ("인사/스몰토크", "What do you do for a living?", "무슨 일 하세요?"),
+    ("인사/스몰토크", "Where are you from originally?", "원래 어디 출신이세요?"),
+    ("인사/스몰토크", "It's getting late. I'd better head home.", "시간이 늦었네요. 집에 가봐야겠어요."),
+    # ===== 자기소개 / 근황 =====
+    ("자기소개/근황", "Let me introduce myself.", "제 소개를 할게요."),
+    ("자기소개/근황", "I work in marketing at a tech company.", "저는 IT 회사에서 마케팅 일을 하고 있어요."),
+    ("자기소개/근황", "I've been learning English for a few months.", "몇 달째 영어를 배우고 있어요."),
+    ("자기소개/근황", "In my free time, I enjoy playing golf.", "여가 시간에는 골프 치는 걸 좋아해요."),
+    ("자기소개/근황", "I'm originally from Korea, but I travel a lot.", "한국 출신인데 여행을 많이 다녀요."),
+    ("자기소개/근황", "I've been really busy with work these days.", "요즘 일 때문에 정말 바빴어요."),
+    ("자기소개/근황", "Nothing much, same as usual.", "별일 없어, 늘 똑같지 뭐."),
+    ("자기소개/근황", "I just got back from a business trip.", "출장에서 막 돌아왔어요."),
+    ("자기소개/근황", "I'm trying to get in shape lately.", "요즘 몸을 만들려고 노력 중이에요."),
+    ("자기소개/근황", "I picked up a new hobby recently.", "최근에 새로운 취미를 시작했어요."),
+    ("자기소개/근황", "I'm not a morning person.", "저는 아침형 인간이 아니에요."),
+    ("자기소개/근황", "I have two kids, a boy and a girl.", "아이가 둘 있어요, 아들 하나 딸 하나요."),
+    ("자기소개/근황", "I've lived here for about ten years.", "여기 산 지 십 년 정도 됐어요."),
+    ("자기소개/근황", "My English is a work in progress.", "제 영어는 아직 배우는 중이에요."),
+    ("자기소개/근황", "I'm more of a listener than a talker.", "저는 말하기보다는 듣는 편이에요."),
+    # ===== 감사 / 사과 =====
+    ("감사/사과", "I really appreciate your help.", "도와주셔서 정말 감사해요."),
+    ("감사/사과", "Thanks a lot. That means a lot to me.", "정말 고마워요. 저한테 큰 의미가 있어요."),
+    ("감사/사과", "I can't thank you enough.", "뭐라고 감사드려야 할지 모르겠어요."),
+    ("감사/사과", "Thank you for taking the time.", "시간 내주셔서 감사합니다."),
+    ("감사/사과", "It's very kind of you to say that.", "그렇게 말씀해주시니 정말 감사해요."),
+    ("감사/사과", "I owe you one.", "신세 한번 졌네요."),
+    ("감사/사과", "Don't mention it.", "별말씀을요."),
+    ("감사/사과", "I'm sorry to keep you waiting.", "기다리게 해서 죄송해요."),
+    ("감사/사과", "Sorry, I didn't mean to interrupt.", "죄송해요, 방해할 생각은 아니었어요."),
+    ("감사/사과", "My apologies for the late reply.", "답장이 늦어서 죄송합니다."),
+    ("감사/사과", "I'm afraid I made a mistake.", "제가 실수를 한 것 같아요."),
+    ("감사/사과", "It was my fault. It won't happen again.", "제 잘못이었어요. 다시는 그런 일 없을 거예요."),
+    ("감사/사과", "No worries. It happens to everyone.", "괜찮아요. 누구나 그럴 수 있죠."),
+    ("감사/사과", "I hope I didn't cause too much trouble.", "제가 너무 폐를 끼치지 않았길 바라요."),
+    ("감사/사과", "Sorry for the short notice.", "갑작스럽게 알려드려 죄송해요."),
+    # ===== 부탁 / 허락 =====
+    ("부탁/허락", "Could you do me a favor?", "부탁 하나만 들어줄 수 있어요?"),
+    ("부탁/허락", "Would you mind opening the window?", "창문 좀 열어주시겠어요?"),
+    ("부탁/허락", "Can I ask you something?", "뭐 하나 물어봐도 돼요?"),
+    ("부탁/허락", "Is it okay if I leave a bit early today?", "오늘 조금 일찍 가도 괜찮을까요?"),
+    ("부탁/허락", "Could you say that again, please?", "다시 한번 말씀해주시겠어요?"),
+    ("부탁/허락", "Could you speak a little more slowly?", "조금만 천천히 말씀해주시겠어요?"),
+    ("부탁/허락", "Can you give me a hand with this?", "이것 좀 도와줄래요?"),
+    ("부탁/허락", "Would it be possible to change the schedule?", "일정을 바꾸는 게 가능할까요?"),
+    ("부탁/허락", "Let me know if you need anything.", "필요한 게 있으면 말씀하세요."),
+    ("부탁/허락", "Do you mind if I sit here?", "여기 앉아도 될까요?"),
+    ("부탁/허락", "Could you keep an eye on my bag for a second?", "잠깐 제 가방 좀 봐주시겠어요?"),
+    ("부탁/허락", "Feel free to ask me anything.", "뭐든지 편하게 물어보세요."),
+    ("부탁/허락", "Can I get back to you on that?", "그건 나중에 답해드려도 될까요?"),
+    ("부탁/허락", "Could you send me the details by email?", "자세한 내용을 이메일로 보내주시겠어요?"),
+    ("부탁/허락", "I'd appreciate it if you could check again.", "다시 한번 확인해주시면 감사하겠습니다."),
+    # ===== 의견 / 동의 =====
+    ("의견/동의", "In my opinion, it's worth trying.", "제 생각에는 시도해볼 가치가 있어요."),
+    ("의견/동의", "I couldn't agree more.", "전적으로 동의해요."),
+    ("의견/동의", "That's exactly what I was thinking.", "그게 바로 제가 생각하던 거예요."),
+    ("의견/동의", "I see your point, but I have a different view.", "무슨 말씀인지 알겠지만 저는 생각이 좀 달라요."),
+    ("의견/동의", "It depends on the situation.", "상황에 따라 다르죠."),
+    ("의견/동의", "Let's agree to disagree.", "서로 생각이 다르다는 걸 인정하죠."),
+    ("의견/동의", "That makes sense.", "일리가 있네요."),
+    ("의견/동의", "I'm not so sure about that.", "그건 잘 모르겠는데요."),
+    ("의견/동의", "What do you think about this idea?", "이 아이디어에 대해 어떻게 생각하세요?"),
+    ("의견/동의", "If I were you, I would take the offer.", "제가 당신이라면 그 제안을 받아들일 거예요."),
+    ("의견/동의", "To be honest, I'm not a big fan of it.", "솔직히 말하면 저는 그걸 별로 안 좋아해요."),
+    ("의견/동의", "It's better than nothing.", "없는 것보다는 낫죠."),
+    ("의견/동의", "That's a good point.", "좋은 지적이에요."),
+    ("의견/동의", "Let me think about it for a moment.", "잠시 생각할 시간을 주세요."),
+    ("의견/동의", "I'll leave it up to you.", "당신에게 맡길게요."),
+    # ===== 감정 / 리액션 =====
+    ("감정/리액션", "You've got to be kidding me!", "농담이죠? 말도 안 돼!"),
+    ("감정/리액션", "That sounds like a lot of fun.", "그거 정말 재미있겠는데요."),
+    ("감정/리액션", "I'm so relieved to hear that.", "그 말을 들으니 정말 다행이에요."),
+    ("감정/리액션", "I know exactly how you feel.", "그 기분 정말 잘 알아요."),
+    ("감정/리액션", "That must have been really hard for you.", "정말 힘드셨겠어요."),
+    ("감정/리액션", "I'm really looking forward to it.", "정말 기대돼요."),
+    ("감정/리액션", "It's not a big deal.", "별거 아니에요."),
+    ("감정/리액션", "I was so embarrassed.", "정말 창피했어요."),
+    ("감정/리액션", "You made my day!", "덕분에 기분 좋아졌어요!"),
+    ("감정/리액션", "I can't believe it actually happened.", "그게 진짜 일어났다니 믿기지 않아요."),
+    ("감정/리액션", "Congratulations! You deserve it.", "축하해요! 충분히 그럴 자격이 있어요."),
+    ("감정/리액션", "Keep your fingers crossed for me.", "행운을 빌어줘요."),
+    ("감정/리액션", "Don't be so hard on yourself.", "너무 자책하지 마세요."),
+    ("감정/리액션", "It could have been worse.", "그만하길 다행이에요."),
+    ("감정/리액션", "I'm a little nervous about tomorrow.", "내일 일이 조금 긴장돼요."),
+    ("감정/리액션", "That's music to my ears.", "정말 반가운 소식이네요."),
+    ("감정/리액션", "Cheer up! Things will get better.", "힘내요! 다 잘될 거예요."),
+    # ===== 식당 / 카페 =====
+    ("식당/카페", "A table for two, please.", "두 명 자리 부탁합니다."),
+    ("식당/카페", "Could we see the menu, please?", "메뉴판 좀 볼 수 있을까요?"),
+    ("식당/카페", "What do you recommend?", "추천 메뉴가 뭐예요?"),
+    ("식당/카페", "I'll have the same, please.", "저도 같은 걸로 주세요."),
+    ("식당/카페", "Could I get this to go?", "이거 포장해 주시겠어요?"),
+    ("식당/카페", "Can we get separate checks?", "계산서를 따로 해주시겠어요?"),
+    ("식당/카페", "Is this dish very spicy?", "이 요리 많이 매운가요?"),
+    ("식당/카페", "I'm allergic to peanuts.", "저는 땅콩 알레르기가 있어요."),
+    ("식당/카페", "Could we get some more water, please?", "물 좀 더 주시겠어요?"),
+    ("식당/카페", "Everything was delicious. Thank you.", "전부 맛있었어요. 감사합니다."),
+    ("식당/카페", "Could I get the check, please?", "계산서 좀 주시겠어요?"),
+    ("식당/카페", "Do you have any vegetarian options?", "채식 메뉴가 있나요?"),
+    ("식당/카페", "I'd like an iced americano, please.", "아이스 아메리카노 한 잔 주세요."),
+    ("식당/카페", "For here or to go?", "매장에서 드시나요, 포장인가요?"),
+    ("식당/카페", "This isn't what I ordered.", "제가 주문한 게 아닌데요."),
+    ("식당/카페", "How long is the wait?", "얼마나 기다려야 하나요?"),
+    ("식당/카페", "We have a reservation under Kim.", "김으로 예약했어요."),
+    ("식당/카페", "It's on me tonight.", "오늘은 제가 살게요."),
+    # ===== 쇼핑 =====
+    ("쇼핑", "I'm just looking, thanks.", "그냥 둘러보는 중이에요, 감사해요."),
+    ("쇼핑", "Do you have this in a larger size?", "이거 더 큰 사이즈 있나요?"),
+    ("쇼핑", "Can I try this on?", "이거 입어봐도 되나요?"),
+    ("쇼핑", "How much is this?", "이거 얼마예요?"),
+    ("쇼핑", "Is this on sale?", "이거 세일 중인가요?"),
+    ("쇼핑", "Do you have this in a different color?", "이거 다른 색상 있나요?"),
+    ("쇼핑", "I'll take it.", "이걸로 살게요."),
+    ("쇼핑", "Can I pay by card?", "카드로 계산할 수 있나요?"),
+    ("쇼핑", "Could I get a refund on this?", "이거 환불받을 수 있을까요?"),
+    ("쇼핑", "I'd like to exchange this for a different one.", "이걸 다른 걸로 교환하고 싶어요."),
+    ("쇼핑", "Do you have a receipt?", "영수증 있으세요?"),
+    ("쇼핑", "It's a bit out of my price range.", "제 예산을 좀 넘네요."),
+    ("쇼핑", "Where is the fitting room?", "탈의실이 어디예요?"),
+    ("쇼핑", "Could you gift-wrap this, please?", "선물 포장 해주시겠어요?"),
+    ("쇼핑", "When do you close?", "몇 시에 문 닫으세요?"),
+    # ===== 여행 / 공항 / 호텔 =====
+    ("여행/호텔", "I'd like to check in, please.", "체크인하고 싶습니다."),
+    ("여행/호텔", "I have a reservation for three nights.", "3박 예약했어요."),
+    ("여행/호텔", "What time is checkout?", "체크아웃은 몇 시인가요?"),
+    ("여행/호텔", "Could I have a late checkout?", "늦은 체크아웃이 가능할까요?"),
+    ("여행/호텔", "Is breakfast included?", "조식이 포함되어 있나요?"),
+    ("여행/호텔", "Could you keep my luggage until this afternoon?", "오후까지 짐을 맡아주실 수 있나요?"),
+    ("여행/호텔", "The air conditioner in my room isn't working.", "제 방 에어컨이 작동하지 않아요."),
+    ("여행/호텔", "Could I get a wake-up call at seven?", "7시에 모닝콜 해주시겠어요?"),
+    ("여행/호텔", "Where can I catch a taxi?", "택시는 어디서 탈 수 있나요?"),
+    ("여행/호텔", "I'm here on vacation for a week.", "일주일 휴가로 왔어요."),
+    ("여행/호텔", "I have nothing to declare.", "신고할 물품이 없습니다."),
+    ("여행/호텔", "Is this the line for boarding?", "이게 탑승 줄인가요?"),
+    ("여행/호텔", "Could I have a window seat, please?", "창가 자리로 부탁드려요."),
+    ("여행/호텔", "My flight was delayed by two hours.", "제 비행기가 두 시간 지연됐어요."),
+    ("여행/호텔", "Where is the baggage claim?", "수하물 찾는 곳이 어디예요?"),
+    ("여행/호텔", "Do you have a city map?", "시내 지도 있나요?"),
+    ("여행/호텔", "What's worth seeing around here?", "이 근처에 볼 만한 곳이 있나요?"),
+    ("여행/호텔", "Could you take a picture of us?", "저희 사진 좀 찍어주시겠어요?"),
+    # ===== 길찾기 / 교통 =====
+    ("길/교통", "Excuse me, how do I get to the station?", "실례합니다, 역까지 어떻게 가나요?"),
+    ("길/교통", "Is it within walking distance?", "걸어갈 수 있는 거리인가요?"),
+    ("길/교통", "How long does it take to get there?", "거기까지 얼마나 걸리나요?"),
+    ("길/교통", "You can't miss it.", "쉽게 찾으실 거예요."),
+    ("길/교통", "Go straight and turn left at the corner.", "직진하다가 모퉁이에서 왼쪽으로 도세요."),
+    ("길/교통", "I think I'm lost.", "길을 잃은 것 같아요."),
+    ("길/교통", "Does this bus go downtown?", "이 버스 시내로 가나요?"),
+    ("길/교통", "Where should I get off?", "어디서 내려야 하나요?"),
+    ("길/교통", "Could you drop me off here?", "여기서 내려주시겠어요?"),
+    ("길/교통", "How much is the fare?", "요금이 얼마예요?"),
+    ("길/교통", "Which line goes to the airport?", "공항에 가려면 몇 호선을 타야 하나요?"),
+    ("길/교통", "Is this the right way to the museum?", "박물관 가는 길이 이쪽 맞나요?"),
+    ("길/교통", "The traffic is terrible today.", "오늘 차가 너무 막히네요."),
+    ("길/교통", "I missed my stop.", "내릴 곳을 지나쳤어요."),
+    ("길/교통", "It's just around the corner.", "바로 모퉁이 돌면 있어요."),
+    # ===== 전화 / 약속 =====
+    ("전화/약속", "May I ask who's calling?", "전화 주신 분이 누구신가요?"),
+    ("전화/약속", "Could you hold on a second?", "잠시만 기다려주시겠어요?"),
+    ("전화/약속", "I'll call you back in ten minutes.", "10분 후에 다시 전화드릴게요."),
+    ("전화/약속", "You have the wrong number.", "전화 잘못 거셨어요."),
+    ("전화/약속", "The line is busy.", "통화 중이에요."),
+    ("전화/약속", "Can you hear me okay?", "제 목소리 잘 들리세요?"),
+    ("전화/약속", "Sorry, you're breaking up.", "죄송해요, 소리가 자꾸 끊겨요."),
+    ("전화/약속", "Are you free this Friday evening?", "이번 주 금요일 저녁에 시간 있어요?"),
+    ("전화/약속", "Let's grab a coffee sometime.", "언제 커피 한잔해요."),
+    ("전화/약속", "Something came up, so I have to cancel.", "일이 생겨서 취소해야 할 것 같아요."),
+    ("전화/약속", "Can we reschedule for next week?", "다음 주로 일정을 바꿀 수 있을까요?"),
+    ("전화/약속", "I'm running about ten minutes late.", "10분 정도 늦을 것 같아요."),
+    ("전화/약속", "Where should we meet?", "어디서 만날까요?"),
+    ("전화/약속", "Does three o'clock work for you?", "3시 괜찮으세요?"),
+    ("전화/약속", "I'll text you the address.", "주소는 문자로 보낼게요."),
+    # ===== 회사 / 회의 =====
+    ("회사/회의", "Let's get started, shall we?", "그럼 시작할까요?"),
+    ("회사/회의", "Could you share your screen?", "화면 공유 좀 해주시겠어요?"),
+    ("회사/회의", "I'll send you the file right away.", "파일 바로 보내드릴게요."),
+    ("회사/회의", "When is the deadline for this?", "이거 마감이 언제예요?"),
+    ("회사/회의", "Let me get back to you on that.", "그 건은 확인 후 다시 말씀드릴게요."),
+    ("회사/회의", "Could you give us a quick update?", "간단히 진행 상황을 공유해주시겠어요?"),
+    ("회사/회의", "I'm afraid I have another meeting at three.", "죄송하지만 3시에 다른 회의가 있어요."),
+    ("회사/회의", "Let's go over the main points again.", "주요 사항을 다시 한번 짚어보죠."),
+    ("회사/회의", "That's all from my side.", "제 쪽에서는 이상입니다."),
+    ("회사/회의", "Any questions so far?", "여기까지 질문 있으신가요?"),
+    ("회사/회의", "I'm on it.", "바로 처리하겠습니다."),
+    ("회사/회의", "Could we move the meeting up an hour?", "회의를 한 시간 앞당길 수 있을까요?"),
+    ("회사/회의", "Sorry, I was on mute.", "죄송해요, 음소거 상태였네요."),
+    ("회사/회의", "Let's call it a day.", "오늘은 여기까지 하죠."),
+    ("회사/회의", "I'll keep you posted.", "진행 상황 계속 알려드릴게요."),
+    ("회사/회의", "We're running out of time.", "시간이 얼마 안 남았네요."),
+    # ===== 문제 / 도움 요청 =====
+    ("문제해결", "Excuse me, there seems to be a mistake.", "실례합니다, 뭔가 착오가 있는 것 같아요."),
+    ("문제해결", "I was charged twice for the same item.", "같은 상품에 두 번 결제됐어요."),
+    ("문제해결", "My phone battery is about to die.", "제 휴대폰 배터리가 다 되어가요."),
+    ("문제해결", "I left my wallet at home.", "지갑을 집에 두고 왔어요."),
+    ("문제해결", "Could you help me find my gate?", "제 탑승구 찾는 것 좀 도와주시겠어요?"),
+    ("문제해결", "I lost my phone. What should I do?", "휴대폰을 잃어버렸어요. 어떻게 해야 하죠?"),
+    ("문제해결", "Is there a pharmacy nearby?", "근처에 약국이 있나요?"),
+    ("문제해결", "I don't feel very well.", "몸이 좀 안 좋아요."),
+    ("문제해결", "Could you write that down for me?", "그것 좀 적어주시겠어요?"),
+    ("문제해결", "What does this word mean?", "이 단어는 무슨 뜻이에요?"),
+    ("문제해결", "How do you say this in English?", "이건 영어로 뭐라고 하나요?"),
+    ("문제해결", "Sorry, I didn't catch that.", "죄송해요, 못 알아들었어요."),
+    ("문제해결", "Could you explain that in a simpler way?", "더 쉽게 설명해주시겠어요?"),
+    ("문제해결", "The Wi-Fi doesn't seem to be working.", "와이파이가 안 되는 것 같아요."),
+    ("문제해결", "Who should I talk to about this?", "이 문제는 누구에게 말해야 하나요?"),
+]
+
+def main():
+    seen = set()
+    items = []
+    for cat, en, ko in SENTENCES:
+        key = en.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append({
+            "id": 20000 + len(items) + 1,
+            "word": en,        # 학습 카드/퀴즈에서 '정답'이 되는 영어 문장
+            "ipa": "",
+            "meaning": ko,     # 카드 앞면에 보여줄 한국어
+            "example": "",
+            "deck": "sentence",
+            "cat": cat,
+        })
+    dst = os.path.join(BASE, "data", "sentences.js")
+    with open(dst, "w", encoding="utf-8") as f:
+        f.write("// 자동 생성 파일 - 실전 회화 문장. 재생성: python build_sentences.py\n")
+        f.write("const SENTENCES = ")
+        json.dump(items, f, ensure_ascii=False, separators=(",", ":"))
+        f.write(";\n")
+    cats = {}
+    for it in items:
+        cats[it["cat"]] = cats.get(it["cat"], 0) + 1
+    print(f"회화 문장 {len(items)}개 생성 -> {dst}")
+    for c, n in cats.items():
+        print(f"  {c}: {n}개")
+
+if __name__ == "__main__":
+    main()

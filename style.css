@@ -750,6 +750,41 @@ body {
   .card-word { font-size: 1.6rem; }
 }
 
+/* ---------- 문장 학습 (💬 문장 덱) ---------- */
+.card-word.sentence-front {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  word-break: keep-all;
+  font-weight: 700;
+}
+.quiz-assemble { width: 100%; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.assemble-built {
+  min-height: 48px;
+  width: 100%;
+  background: #f2f5fc;
+  border: 2px dashed #c9d4ee;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: left;
+}
+.assemble-tiles { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.assemble-tile {
+  background: var(--card-bg);
+  border: 1.5px solid #d6dcea;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(31, 36, 54, 0.06);
+}
+.assemble-tile:hover { border-color: var(--primary); }
+.assemble-tile:disabled { opacity: 0.25; cursor: default; }
+
 /* 세로 공간이 극단적으로 작은 경우에만 잔디 캘린더 숨김 */
 @media (max-width: 780px) and (max-height: 570px) {
   .heatmap-wrap { display: none; }

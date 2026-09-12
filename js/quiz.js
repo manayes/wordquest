@@ -44,6 +44,21 @@ const Quiz = (() => {
 
   // pool: 출제 대상 단어들, all: 오답 보기용 전체 단어
   function makeQuestion(target, all) {
+    // 문장 카드: 조립 퍼즐 또는 한->영 4지선다
+    if ((target.deck || "vocab") === "sentence") {
+      const tokens = target.word.split(/\s+/).filter(Boolean);
+      if (tokens.length >= 3 && Math.random() < 0.6) {
+        return { type: "assemble", typeLabel: "🧩 문장 조립", target,
+          question: target.meaning, example: null,
+          options: null, tokens: shuffle(tokens),
+          answer: tokens.join(" ") };
+      }
+      const opts = shuffle([target.word, ...distractors(all, target, "word", 3)]);
+      return { type: "s2e", typeLabel: "💬 영어 문장 고르기", target,
+        question: target.meaning, example: null,
+        options: opts, answer: target.word };
+    }
+
     const types = ["w2m", "m2w"];
     const b = blankExample(target);
     if (b) types.push("blank", "spell");

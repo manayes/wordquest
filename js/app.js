@@ -3,13 +3,18 @@
 (() => {
   const state = Store.load();
   const $ = id => document.getElementById(id);
-  const ALL_WORDS = WORDS.concat(typeof WORDS_TOEIC !== "undefined" ? WORDS_TOEIC : []);
+  const ALL_WORDS = WORDS
+    .concat(typeof WORDS_TOEIC !== "undefined" ? WORDS_TOEIC : [])
+    .concat(typeof SENTENCES !== "undefined" ? SENTENCES : []);
   const wordById = new Map(ALL_WORDS.map(w => [w.id, w]));
+
+  function isSentence(w) { return (w.deck || "vocab") === "sentence"; }
 
   // ---------- 단어장(덱) 선택 ----------
   function inDeck(w) {
     const d = state.settings.deck || "all";
-    return d === "all" || (w.deck || "vocab") === d;
+    if (d === "all") return !isSentence(w); // '전체'는 단어만 (문장은 별도 탭)
+    return (w.deck || "vocab") === d;
   }
   function activeWords() { return ALL_WORDS.filter(inDeck); }
 
@@ -123,7 +128,10 @@
     $("learn-progress").style.width = `${Math.max(pct, learned > 0 ? 1 : 0)}%`;
     $("progress-caption").textContent = `전체 진도 ${pct.toFixed(1)}%`;
 
-    $("study-preview").textContent = `복습 ${due}개 + 새 단어 ${newCount}개`;
+    const noun = (state.settings.deck === "sentence") ? "문장" : "단어";
+    $("stat-total").nextElementSibling.textContent = `전체 ${noun}`;
+    $("stat-learned").nextElementSibling.textContent = `학습한 ${noun}`;
+    $("study-preview").textContent = `복습 ${due}개 + 새 ${noun} ${newCount}개`;
     $("sel-new-per-day").value = String(state.settings.newPerDay);
     $("done-note").hidden = !(due === 0 && newCount === 0 && learned > 0);
 
@@ -236,10 +244,22 @@
     if (item.isNew) { badge.textContent = "✨ 새 단어"; badge.className = "card-badge badge-new"; }
     else { badge.textContent = "🔁 복습"; badge.className = "card-badge"; }
 
-    $("card-word").textContent = w.word;
-    $("card-ipa").textContent = w.ipa || "";
-    $("card-meaning").textContent = w.meaning;
-    $("card-example").textContent = w.example || "";
+    if (isSentence(w)) {
+      // 문장 카드: 앞면 = 한국어, 정답 = 영어 문장
+      $("card-word").textContent = w.meaning;
+      $("card-word").classList.add("sentence-front");
+      $("card-ipa").textContent = w.cat ? "💬 " + w.cat : "";
+      $("card-meaning").textContent = w.word;
+      $("card-example").textContent = "";
+    } else {
+      $("card-word").textContent = w.word;
+      $("card-word").classList.remove("sentence-front");
+      $("card-ipa").textContent = w.ipa || "";
+      $("card-meaning").textContent = w.meaning;
+      $("card-example").textContent = w.example || "";
+      $("btn-tts").hidden = false;
+    }
+    $("ai-actions").hidden = isSentence(w); // 연상법/예문 생성은 단어 전용
     $("ai-output").hidden = true;
     $("ai-output").innerHTML = "";
 
@@ -247,6 +267,7 @@
     $("card-answer").hidden = !revealNow;
     $("btn-reveal").hidden = revealNow;
     $("grade-buttons").hidden = !revealNow;
+    $("btn-tts").hidden = isSentence(w) && !revealNow; // 문장은 정답(영어) 공개 전 발음 숨김
     if (revealNow) {
       updateIntervalPreviews(w);
       speak(w.word);
@@ -268,6 +289,7 @@
     $("card-answer").hidden = false;
     $("btn-reveal").hidden = true;
     $("grade-buttons").hidden = false;
+    $("btn-tts").hidden = false;
     updateIntervalPreviews(w);
     speak(w.word);
   });
@@ -490,6 +512,7 @@
     renderQuiz();
 
     // AI 변형 문제: 자주 틀린 단어를 새로운 문장으로 재출제 (뒷부분 문제와 교체)
+    if (state.settings.deck === "sentence") return; // 문장 덱은 자체 유형 사용
     if (!AI.configured(state)) return;
     const weak = studied.filter(w => state.cards[w.id] && state.cards[w.id].wrong > 0);
     const targets = Quiz.shuffle(weak).slice(0, 3);
@@ -535,9 +558,12 @@
     optWrap.innerHTML = "";
     $("quiz-feedback").hidden = true;
     $("btn-quiz-next").hidden = true;
+    $("quiz-spelling").hidden = true;
+    $("quiz-assemble").hidden = true;
 
-    if (q.options) {
-      $("quiz-spelling").hidden = true;
+    if (q.type === "assemble") {
+      renderAssemble(q);
+    } else if (q.options) {
       q.options.forEach(opt => {
         const b = document.createElement("button");
         b.className = "quiz-option";
@@ -554,6 +580,45 @@
     $("quiz-progress").style.width = `${quiz.index / quiz.questions.length * 100}%`;
     $("quiz-count").textContent = `${quiz.index + 1}/${quiz.questions.length}`;
   }
+
+  // ---------- 문장 조립 퍼즐 ----------
+  let assembleState = null; // {q, built: [{tok, btn}]}
+
+  function renderAssemble(q) {
+    $("quiz-assemble").hidden = false;
+    const builtEl = $("assemble-built");
+    const tilesEl = $("assemble-tiles");
+    builtEl.textContent = "";
+    tilesEl.innerHTML = "";
+    assembleState = { q, built: [] };
+    $("btn-assemble-undo").disabled = false;
+    q.tokens.forEach(tok => {
+      const b = document.createElement("button");
+      b.className = "assemble-tile";
+      b.textContent = tok;
+      b.addEventListener("click", () => {
+        if (b.disabled || !assembleState) return;
+        b.disabled = true;
+        assembleState.built.push({ tok, btn: b });
+        builtEl.textContent = assembleState.built.map(x => x.tok).join(" ");
+        if (assembleState.built.length === q.tokens.length) {
+          [...tilesEl.children].forEach(t => { t.disabled = true; });
+          $("btn-assemble-undo").disabled = true;
+          const answer = assembleState.built.map(x => x.tok).join(" ");
+          assembleState = null;
+          answerQuiz(answer, null);
+        }
+      });
+      tilesEl.appendChild(b);
+    });
+  }
+
+  $("btn-assemble-undo").addEventListener("click", () => {
+    if (!assembleState || assembleState.built.length === 0) return;
+    const last = assembleState.built.pop();
+    last.btn.disabled = false;
+    $("assemble-built").textContent = assembleState.built.map(x => x.tok).join(" ");
+  });
 
   function answerQuiz(chosen, btnEl) {
     const q = quiz.questions[quiz.index];
@@ -629,9 +694,11 @@
   let talk = null; // {words, history, userCount, busy, finished}
 
   function recentLearnedWords(n) {
-    // 학습 순서(입력 순서)상 가장 최근에 배운 단어들 (같은 철자는 한 번만)
+    // 학습 순서(입력 순서)상 가장 최근에 배운 '단어'들 (문장 제외, 같은 철자는 한 번만)
+    // 문장 탭에서는 모든 단어 덱을 대상으로 함 (회화/영작은 단어 기반 기능)
     const ids = Object.keys(state.cards).map(Number);
-    const words = ids.map(id => wordById.get(id)).filter(w => w && inDeck(w));
+    const words = ids.map(id => wordById.get(id))
+      .filter(w => w && !isSentence(w) && (state.settings.deck === "sentence" ? true : inDeck(w)));
     const seen = new Set();
     const unique = [];
     for (let i = words.length - 1; i >= 0 && unique.length < n; i--) {
@@ -812,7 +879,8 @@
 
   async function startWrite() {
     if (!requireAi()) return;
-    const studied = Object.keys(state.cards).map(id => wordById.get(Number(id))).filter(w => w && inDeck(w));
+    const studied = Object.keys(state.cards).map(id => wordById.get(Number(id)))
+      .filter(w => w && !isSentence(w) && (state.settings.deck === "sentence" ? true : inDeck(w)));
     if (studied.length < 3) {
       toast("먼저 '오늘의 학습'으로 단어를 3개 이상 배워주세요");
       return;
@@ -933,10 +1001,14 @@
     speechSynthesis.speak(u);
   }
 
+  function shadowText(w) {
+    return isSentence(w) ? w.word : w.example; // 문장 덱은 회화 문장 자체를 쉐도잉
+  }
+
   function startShadow() {
-    // 배운 단어 중 예문이 있는 것 (최근 학습 우선)
+    // 배운 단어의 예문 / 배운 회화 문장 (최근 학습 우선)
     const studied = Object.keys(state.cards).map(id => wordById.get(Number(id)))
-      .filter(w => w && inDeck(w) && w.example);
+      .filter(w => w && inDeck(w) && shadowText(w));
     if (studied.length < 3) {
       toast("먼저 '오늘의 학습'으로 단어를 3개 이상 배워주세요");
       return;
@@ -954,7 +1026,7 @@
     shadow.spoken = false;
     $("shadow-word").innerHTML = "";
     const b = document.createElement("b");
-    b.textContent = w.word;
+    b.textContent = isSentence(w) ? "💬" : w.word;
     $("shadow-word").appendChild(b);
     $("shadow-word").appendChild(document.createTextNode(" — " + w.meaning));
     const s = $("shadow-sentence");
@@ -964,7 +1036,7 @@
     $("shadow-result").innerHTML = "";
     $("shadow-progress").style.width = `${shadow.index / shadow.items.length * 100}%`;
     $("shadow-count").textContent = `${shadow.index + 1}/${shadow.items.length}`;
-    speakRate(w.example, 0.85);
+    speakRate(shadowText(w), 0.85);
   }
 
   function revealShadow() {
@@ -972,7 +1044,7 @@
     shadow.revealed = true;
     const s = $("shadow-sentence");
     s.className = "shadow-sentence";
-    s.textContent = w.example;
+    s.textContent = shadowText(w);
   }
 
   function shadowSimilarity(target, heard) {
@@ -1000,7 +1072,7 @@
     recognizer.onresult = e => {
       done();
       const heard = e.results[0][0].transcript;
-      const { score, words, hits } = shadowSimilarity(w.example, heard);
+      const { score, words, hits } = shadowSimilarity(shadowText(w), heard);
       shadow.spoken = true;
       const box = $("shadow-result");
       box.hidden = false;
@@ -1036,8 +1108,8 @@
   }
 
   $("btn-start-shadow").addEventListener("click", startShadow);
-  $("btn-shadow-play").addEventListener("click", () => shadow && speakRate(shadow.items[shadow.index].example, 0.85));
-  $("btn-shadow-slow").addEventListener("click", () => shadow && speakRate(shadow.items[shadow.index].example, 0.6));
+  $("btn-shadow-play").addEventListener("click", () => shadow && speakRate(shadowText(shadow.items[shadow.index]), 0.85));
+  $("btn-shadow-slow").addEventListener("click", () => shadow && speakRate(shadowText(shadow.items[shadow.index]), 0.6));
   $("btn-shadow-reveal").addEventListener("click", () => shadow && revealShadow());
   $("btn-shadow-mic").addEventListener("click", micShadow);
   $("btn-shadow-next").addEventListener("click", () => {
