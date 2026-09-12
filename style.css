@@ -701,7 +701,7 @@ body {
   .home-header h1 { font-size: 1.15rem; display: inline; }
   .subtitle { display: inline; margin-left: 6px; font-size: 0.75rem; }
 
-  .deck-tab { padding: 6px 4px; font-size: 0.78rem; border-radius: 10px; }
+  .deck-tab { padding: 6px 2px; font-size: 0.7rem; border-radius: 10px; }
 
   .player-card { padding: 7px 12px; gap: 10px; }
   .level-badge { padding: 5px 9px; font-size: 0.85rem; border-radius: 9px; }
@@ -784,6 +784,48 @@ body {
 }
 .assemble-tile:hover { border-color: var(--primary); }
 .assemble-tile:disabled { opacity: 0.25; cursor: default; }
+
+/* ---------- 내 카드 추가 (⭐) ---------- */
+.modal-sub { font-size: 0.8rem; color: var(--text-sub); font-weight: 500; }
+.modal textarea {
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: 1.5px solid #d6dcea;
+  border-radius: 10px;
+  outline: none;
+  resize: vertical;
+  background: #fff;
+}
+.modal textarea:focus { border-color: var(--primary); }
+.custom-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f6f8fd;
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+.custom-row-text { flex: 1; min-width: 0; }
+.custom-en { font-size: 0.88rem; font-weight: 700; word-break: break-word; }
+.custom-ko { font-size: 0.78rem; color: var(--text-sub); word-break: keep-all; }
+.custom-del {
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.custom-del:hover { opacity: 1; }
 
 /* 세로 공간이 극단적으로 작은 경우에만 잔디 캘린더 숨김 */
 @media (max-width: 780px) and (max-height: 570px) {

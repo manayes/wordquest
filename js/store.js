@@ -15,6 +15,7 @@ const Store = (() => {
       days: {},                     // "YYYY-MM-DD" -> {newLearned, reviewed, quizDone, actions, quests}
       xp: 0,                        // 누적 경험치
       updatedAt: 0,                 // 마지막 저장 시각 (동기화 비교용)
+      custom: [],                   // 사용자가 직접 추가한 카드 (⭐ 내 카드)
       aiCache: { mnemonics: {}, examples: {} },  // wordId -> 생성된 AI 콘텐츠
     };
   }

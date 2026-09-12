@@ -6,15 +6,22 @@
   const ALL_WORDS = WORDS
     .concat(typeof WORDS_TOEIC !== "undefined" ? WORDS_TOEIC : [])
     .concat(typeof SENTENCES !== "undefined" ? SENTENCES : []);
+  // 사용자가 추가한 카드(⭐ 내 카드)는 state에 저장되어 동기화됨
+  for (const c of (state.custom || [])) ALL_WORDS.push(c);
   const wordById = new Map(ALL_WORDS.map(w => [w.id, w]));
 
-  function isSentence(w) { return (w.deck || "vocab") === "sentence"; }
+  function isSentence(w) { return (w.deck || "vocab") === "sentence" || !!w.sent; }
 
   // ---------- 단어장(덱) 선택 ----------
   function inDeck(w) {
     const d = state.settings.deck || "all";
     if (d === "all") return !isSentence(w); // '전체'는 단어만 (문장은 별도 탭)
     return (w.deck || "vocab") === d;
+  }
+
+  function deckNoun() {
+    const d = state.settings.deck || "all";
+    return d === "sentence" ? "문장" : (d === "custom" ? "카드" : "단어");
   }
   function activeWords() { return ALL_WORDS.filter(inDeck); }
 
@@ -128,7 +135,7 @@
     $("learn-progress").style.width = `${Math.max(pct, learned > 0 ? 1 : 0)}%`;
     $("progress-caption").textContent = `전체 진도 ${pct.toFixed(1)}%`;
 
-    const noun = (state.settings.deck === "sentence") ? "문장" : "단어";
+    const noun = deckNoun();
     $("stat-total").nextElementSibling.textContent = `전체 ${noun}`;
     $("stat-learned").nextElementSibling.textContent = `학습한 ${noun}`;
     $("study-preview").textContent = `복습 ${due}개 + 새 ${noun} ${newCount}개`;
@@ -217,6 +224,10 @@
   let session = null; // {queue:[{word,isNew}], done, total, newIntroduced:Set, reviewedCount}
 
   function startStudy() {
+    if (activeWords().length === 0) {
+      toast("➕ '카드 추가'로 나만의 단어/문장을 먼저 넣어주세요");
+      return;
+    }
     const reviews = Quiz.shuffle(dueCards()).map(w => ({ word: w, isNew: false }));
     const news = newWordsAvailable(remainingNewToday()).map(w => ({ word: w, isNew: true }));
     let queue = [...reviews, ...news];
@@ -250,7 +261,7 @@
       $("card-word").classList.add("sentence-front");
       $("card-ipa").textContent = w.cat ? "💬 " + w.cat : "";
       $("card-meaning").textContent = w.word;
-      $("card-example").textContent = "";
+      $("card-example").textContent = w.example || ""; // 내 카드 문장은 상황 설명 표시
     } else {
       $("card-word").textContent = w.word;
       $("card-word").classList.remove("sentence-front");
@@ -386,6 +397,120 @@
     }
   }
 
+  // ---------- 내 카드 추가/관리 (⭐ 내 카드) ----------
+  function customNextId() {
+    let max = 30000;
+    for (const c of state.custom) if (c.id > max) max = c.id;
+    return max + 1;
+  }
+
+  function renderCustomList() {
+    $("custom-count").textContent = state.custom.length ? `(${state.custom.length}장)` : "";
+    const wrap = $("custom-list");
+    wrap.innerHTML = "";
+    for (const c of state.custom.slice().reverse()) {
+      const row = document.createElement("div");
+      row.className = "custom-row";
+      const txt = document.createElement("div");
+      txt.className = "custom-row-text";
+      const en = document.createElement("div");
+      en.className = "custom-en";
+      en.textContent = (c.sent ? "💬 " : "") + c.word;
+      const ko = document.createElement("div");
+      ko.className = "custom-ko";
+      ko.textContent = c.meaning;
+      txt.appendChild(en);
+      txt.appendChild(ko);
+      const del = document.createElement("button");
+      del.className = "custom-del";
+      del.textContent = "🗑";
+      del.title = "삭제";
+      del.addEventListener("click", () => {
+        if (!confirm(`'${c.word}' 카드를 삭제할까요? 학습 기록도 함께 지워집니다.`)) return;
+        state.custom = state.custom.filter(x => x.id !== c.id);
+        const i = ALL_WORDS.findIndex(x => x.id === c.id);
+        if (i >= 0) ALL_WORDS.splice(i, 1);
+        wordById.delete(c.id);
+        delete state.cards[c.id];
+        Store.save(state);
+        renderCustomList();
+        renderHome();
+      });
+      row.appendChild(txt);
+      row.appendChild(del);
+      wrap.appendChild(row);
+    }
+  }
+
+  $("btn-add-card").addEventListener("click", () => {
+    renderCustomList();
+    $("add-modal").hidden = false;
+    $("add-input").focus();
+  });
+  $("btn-add-close").addEventListener("click", () => { $("add-modal").hidden = true; });
+
+  async function addCards() {
+    const raw = $("add-input").value.trim();
+    if (!raw) return;
+    const lines = raw.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 20);
+    const manual = [], needAI = [];
+    for (const line of lines) {
+      const parts = line.split("|");
+      if (parts.length >= 2 && parts[0].trim() && parts.slice(1).join("|").trim()) {
+        manual.push({ en: parts[0].trim(), ko: parts.slice(1).join("|").trim() });
+      } else {
+        needAI.push(line);
+      }
+    }
+    if (needAI.length && !AI.configured(state)) {
+      toast("뜻이 없는 줄은 AI가 필요해요 — '영어 | 뜻' 형식으로 쓰거나 🤖 AI 설정을 해주세요");
+      return;
+    }
+    const btn = $("btn-add-save");
+    btn.disabled = true;
+    btn.textContent = needAI.length ? "🤖 AI 생성 중..." : "추가 중...";
+    try {
+      const entries = [];
+      for (const m of manual) {
+        const sent = m.en.split(/\s+/).length >= 3;
+        entries.push({ id: 0, word: m.en, ipa: "", meaning: m.ko, example: "", deck: "custom", sent, cat: sent ? "내 카드" : "" });
+      }
+      if (needAI.length) {
+        const cards = await AI.completeCards(state, needAI);
+        for (const c of cards) {
+          if (!c.input || !c.meaning) continue;
+          const sent = c.kind === "sentence";
+          entries.push({
+            id: 0, word: c.input, ipa: sent ? "" : (c.ipa || ""), meaning: c.meaning,
+            example: c.example || "", deck: "custom", sent, cat: sent ? (c.cat || "내 카드") : "",
+          });
+        }
+      }
+      if (entries.length === 0) throw new Error("추가할 카드를 만들지 못했어요. 입력을 확인해주세요.");
+      let added = 0;
+      for (const e of entries) {
+        if (state.custom.some(x => x.word.toLowerCase() === e.word.toLowerCase())) continue; // 중복 방지
+        e.id = customNextId();
+        state.custom.push(e);
+        ALL_WORDS.push(e);
+        wordById.set(e.id, e);
+        added++;
+      }
+      Store.save(state);
+      $("add-input").value = "";
+      renderCustomList();
+      renderHome();
+      toast(added ? `⭐ 카드 ${added}장이 추가되었습니다` : "이미 있는 카드예요");
+      if (added) syncPush(true);
+    } catch (e) {
+      toast("⚠️ " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "추가하기";
+    }
+  }
+  $("btn-add-save").addEventListener("click", addCards);
+
   // ---------- 학습 카드 AI 기능 ----------
   async function runAiFeature(kind) {
     if (!session) return;
@@ -503,6 +628,10 @@
   let quiz = null; // {questions, index, correct}
 
   async function startQuiz() {
+    if (activeWords().length < 4) {
+      toast("카드가 4장 이상 있어야 퀴즈를 풀 수 있어요");
+      return;
+    }
     const studied = Object.keys(state.cards).map(id => wordById.get(Number(id))).filter(w => w && inDeck(w));
     const pool = studied.length >= 4 ? studied : activeWords();
     const questions = Quiz.makeQuizSet(pool, activeWords(), 10);
@@ -514,7 +643,7 @@
     // AI 변형 문제: 자주 틀린 단어를 새로운 문장으로 재출제 (뒷부분 문제와 교체)
     if (state.settings.deck === "sentence") return; // 문장 덱은 자체 유형 사용
     if (!AI.configured(state)) return;
-    const weak = studied.filter(w => state.cards[w.id] && state.cards[w.id].wrong > 0);
+    const weak = studied.filter(w => !isSentence(w) && state.cards[w.id] && state.cards[w.id].wrong > 0);
     const targets = Quiz.shuffle(weak).slice(0, 3);
     if (targets.length === 0) return;
     try {

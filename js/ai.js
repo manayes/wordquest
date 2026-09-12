@@ -285,8 +285,49 @@ const AI = (() => {
     );
   }
 
+  // ---------- 내 카드 자동 완성 (입력한 영어 -> 뜻/발음/예문 생성) ----------
+  async function completeCards(state, lines) {
+    const schema = {
+      type: "object",
+      properties: {
+        cards: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              input: { type: "string" },
+              kind: { type: "string", enum: ["word", "sentence"] },
+              ipa: { type: "string" },
+              meaning: { type: "string" },
+              example: { type: "string" },
+              cat: { type: "string" },
+            },
+            required: ["input", "kind", "ipa", "meaning", "example", "cat"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["cards"],
+      additionalProperties: false,
+    };
+    const result = await request(
+      state,
+      "당신은 영어 학습 카드 제작자입니다. 학습자가 입력한 각 영어 표현에 대해 카드를 만들어주세요. " +
+      "규칙: (1) input은 입력을 그대로 복사, " +
+      "(2) kind: 한 단어이거나 짧은 구(phrase)면 'word', 완결된 문장이면 'sentence', " +
+      "(3) word인 경우 - ipa: 미국식 발음기호, meaning: 간결한 한국어 뜻, example: 자연스러운 예문 1개, cat: 빈 문자열, " +
+      "(4) sentence인 경우 - ipa: 빈 문자열, meaning: 자연스러운 한국어 번역, " +
+      "example: 어떤 상황/뉘앙스로 쓰는 표현인지 한국어 한 줄 설명, cat: 짧은 상황 분류(예: 감정 표현, 일상 대화), " +
+      "(5) 드라마 대사처럼 구어체라면 그 말맛을 살려 번역할 것.",
+      "입력 목록:\n" + lines.map((s, i) => `${i + 1}. ${s}`).join("\n"),
+      schema,
+      3000
+    );
+    return result.cards;
+  }
+
   return {
     configured, generateMnemonic, generateExamples, generateQuizQuestions,
-    talkTurn, correctionReport, makeWritingItems, gradeWriting,
+    talkTurn, correctionReport, makeWritingItems, gradeWriting, completeCards,
   };
 })();

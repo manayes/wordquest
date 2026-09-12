@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4f6df5">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 <div class="app">
@@ -27,6 +27,7 @@
       <button class="deck-tab" data-deck="vocab">📕 단어</button>
       <button class="deck-tab" data-deck="toeic">📗 TOEIC</button>
       <button class="deck-tab" data-deck="sentence">💬 문장</button>
+      <button class="deck-tab" data-deck="custom">⭐ 내 카드</button>
     </div>
     <div class="player-card">
       <div class="level-badge" id="level-badge">Lv.1</div>
@@ -83,6 +84,7 @@
         <option value="20">20개</option>
         <option value="30">30개</option>
       </select>
+      <button class="btn-ai-settings" id="btn-add-card">➕ 카드 추가</button>
       <button class="btn-ai-settings" id="btn-ai-settings">🤖 AI 설정</button>
       <button class="btn-ai-settings" id="btn-sync-settings">☁️ 동기화</button>
     </div>
@@ -273,18 +275,35 @@
   </div>
 </div>
 
+<!-- 카드 추가 모달 -->
+<div class="modal-overlay" id="add-modal" hidden>
+  <div class="modal">
+    <h3>➕ 카드 추가 <span class="modal-sub" id="custom-count"></span></h3>
+    <p class="modal-note">넷플릭스 대사, 책에서 본 표현 등 외우고 싶은 단어/문장을 넣어보세요.
+      한 줄에 하나씩, 여러 개도 한 번에 추가됩니다.</p>
+    <textarea id="add-input" rows="4" placeholder="예)&#10;You made my day!&#10;binge-watch&#10;It's not rocket science. | 그렇게 어려운 일 아니야."></textarea>
+    <p class="modal-note">💡 영어만 쓰면 <b>AI가 뜻·발음·예문을 자동 생성</b>합니다.
+      AI 없이 넣으려면 <b>영어 | 뜻</b> 형식으로 쓰세요. 추가된 카드는 <b>⭐ 내 카드</b> 탭에서 학습합니다.</p>
+    <div class="modal-buttons">
+      <button class="btn btn-primary" id="btn-add-save">추가하기</button>
+      <button class="btn btn-secondary" id="btn-add-close">닫기</button>
+    </div>
+    <div class="custom-list" id="custom-list"></div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 
-<script src="data/words.js?v=13"></script>
-<script src="data/words_toeic.js?v=13"></script>
-<script src="data/sentences.js?v=13"></script>
-<script src="js/srs.js?v=13"></script>
-<script src="js/store.js?v=13"></script>
-<script src="js/game.js?v=13"></script>
-<script src="js/quiz.js?v=13"></script>
-<script src="js/ai.js?v=13"></script>
-<script src="js/sync.js?v=13"></script>
-<script src="js/app.js?v=13"></script>
+<script src="data/words.js?v=14"></script>
+<script src="data/words_toeic.js?v=14"></script>
+<script src="data/sentences.js?v=14"></script>
+<script src="js/srs.js?v=14"></script>
+<script src="js/store.js?v=14"></script>
+<script src="js/game.js?v=14"></script>
+<script src="js/quiz.js?v=14"></script>
+<script src="js/ai.js?v=14"></script>
+<script src="js/sync.js?v=14"></script>
+<script src="js/app.js?v=14"></script>
 <script>
 // PWA: 서비스워커 등록 (설치형 앱 + 오프라인 지원)
 if ("serviceWorker" in navigator) {
