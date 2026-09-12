@@ -452,15 +452,27 @@
   async function addCards() {
     const raw = $("add-input").value.trim();
     if (!raw) return;
-    const lines = raw.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 20);
+    const lines = raw.split("\n").map(s => s.trim()).filter(Boolean);
+    if (lines.length > 100) {
+      toast("한 번에 최대 100줄까지 추가할 수 있어요");
+      return;
+    }
     const manual = [], needAI = [];
     for (const line of lines) {
-      const parts = line.split("|");
-      if (parts.length >= 2 && parts[0].trim() && parts.slice(1).join("|").trim()) {
-        manual.push({ en: parts[0].trim(), ko: parts.slice(1).join("|").trim() });
+      // 탭(엑셀/Language Reactor 붙여넣기) 또는 | 로 '영어 / 뜻' 구분
+      let en = "", ko = "";
+      if (line.includes("\t")) {
+        const p = line.split("\t");
+        en = p[0].trim();
+        ko = (p[1] || "").trim();
       } else {
-        needAI.push(line);
+        const p = line.split("|");
+        en = p[0].trim();
+        ko = p.slice(1).join("|").trim();
       }
+      if (!en) continue;
+      if (ko) manual.push({ en, ko });
+      else needAI.push(en);
     }
     if (needAI.length && !AI.configured(state)) {
       toast("뜻이 없는 줄은 AI가 필요해요 — '영어 | 뜻' 형식으로 쓰거나 🤖 AI 설정을 해주세요");
@@ -475,8 +487,10 @@
         const sent = m.en.split(/\s+/).length >= 3;
         entries.push({ id: 0, word: m.en, ipa: "", meaning: m.ko, example: "", deck: "custom", sent, cat: sent ? "내 카드" : "" });
       }
-      if (needAI.length) {
-        const cards = await AI.completeCards(state, needAI);
+      // AI 생성은 20개씩 나눠 처리 (대량 붙여넣기 지원)
+      for (let i = 0; i < needAI.length; i += 20) {
+        btn.textContent = `🤖 AI 생성 중... ${Math.min(i + 20, needAI.length)}/${needAI.length}`;
+        const cards = await AI.completeCards(state, needAI.slice(i, i + 20));
         for (const c of cards) {
           if (!c.input || !c.meaning) continue;
           const sent = c.kind === "sentence";
