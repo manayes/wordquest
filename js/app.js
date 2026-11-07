@@ -34,7 +34,7 @@
   });
 
   // ---------- 화면 전환 ----------
-  const screens = ["home", "study", "quiz", "talk", "write", "shadow", "summary"];
+  const screens = ["home", "study", "quiz", "talk", "write", "shadow", "stats", "summary"];
   function show(name) {
     screens.forEach(s => { $(`screen-${s}`).hidden = (s !== name); });
     if (name === "home") renderHome();
@@ -220,92 +220,204 @@
     toast(AI.configured(state) ? "🤖 AI 기능이 활성화되었습니다" : "저장되었습니다 (API 키 없음)");
   });
 
-  // ---------- 학습 세션 ----------
-  let session = null; // {queue:[{word,isNew}], done, total, newIntroduced:Set, reviewedCount}
+  // ---------- 학습 세션 (자동 채점 엔진) ----------
+  // 자기 평가 대신 실제 문제를 풀어 자동으로 판정한다.
+  // - 첫 시도 정답: 복습 간격 확장 (SRS good)
+  // - 오답: 2~4문제 뒤에 한 번 더 (세션 내 간격 재출제)
+  // - 같은 세션 2회 오답: 오늘은 중단, 내일 다시 (과잉 반복 방지)
+  // - 상습 오답 카드(누적 4회+): 문제 대신 '다시 익히기' 소개 후 테스트, 실패해도 이틀 뒤로
+  let study = null;      // {queue, done, total, newIntroduced:Set, reviewedCount, xpEarned, weakMode}
+  let studyTest = null;  // 퀴즈 화면이 학습 테스트로 동작 중일 때 {item, q}
+  let introItem = null;  // 소개 카드 표시 중인 항목
+
+  function isLeech(w) {
+    const c = state.cards[w.id];
+    return !!c && (c.lapses || 0) >= 4;
+  }
+
+  function buildStudyQueue() {
+    const reviews = Quiz.shuffle(dueCards()).map(w => ({
+      word: w, kind: isLeech(w) ? "intro" : "test", isNew: false, leech: isLeech(w), fails: 0, counted: false,
+    }));
+    const news = newWordsAvailable(remainingNewToday()).map(w => ({
+      word: w, kind: "intro", isNew: true, leech: false, fails: 0, counted: false,
+    }));
+    // 새 카드 소개를 복습 사이에 고르게 배치 (인터리빙)
+    if (reviews.length === 0) return news;
+    if (news.length === 0) return reviews;
+    const queue = [];
+    const gap = Math.max(1, Math.floor(reviews.length / news.length));
+    let ni = 0;
+    reviews.forEach((it, i) => {
+      queue.push(it);
+      if ((i + 1) % gap === 0 && ni < news.length) queue.push(news[ni++]);
+    });
+    while (ni < news.length) queue.push(news[ni++]);
+    return queue;
+  }
+
+  function insertIntoQueue(item, minGap, maxGap) {
+    const gap = minGap + Math.floor(Math.random() * (maxGap - minGap + 1));
+    const pos = Math.min(gap, study.queue.length);
+    study.queue.splice(pos, 0, item);
+    study.total += 1;
+  }
 
   function startStudy() {
     if (activeWords().length === 0) {
       toast("➕ '카드 추가'로 나만의 단어/문장을 먼저 넣어주세요");
       return;
     }
-    const reviews = Quiz.shuffle(dueCards()).map(w => ({ word: w, isNew: false }));
-    const news = newWordsAvailable(remainingNewToday()).map(w => ({ word: w, isNew: true }));
-    let queue = [...reviews, ...news];
+    let queue = buildStudyQueue();
     if (queue.length === 0) {
       // 오늘 목표를 이미 채운 경우: 안내하고 추가 학습 제안
       const extra = newWordsAvailable(state.settings.newPerDay);
       if (extra.length === 0) {
-        toast("🎉 이 단어장의 모든 단어를 학습했습니다!");
+        toast("🎉 이 단어장의 모든 카드를 학습했습니다!");
         return;
       }
-      if (!confirm(`오늘 목표를 모두 마쳤습니다! 새 단어 ${extra.length}개를 추가로 학습할까요?`)) return;
-      queue = extra.map(w => ({ word: w, isNew: true }));
+      if (!confirm(`오늘 목표를 모두 마쳤습니다! 새 ${deckNoun()} ${extra.length}개를 추가로 학습할까요?`)) return;
+      queue = extra.map(w => ({ word: w, kind: "intro", isNew: true, leech: false, fails: 0, counted: false }));
     }
-    session = { queue, done: 0, total: queue.length, newIntroduced: new Set(), reviewedCount: 0, xpEarned: 0 };
-    show("study");
-    renderStudyCard();
+    study = { queue, done: 0, total: queue.length, newIntroduced: new Set(), reviewedCount: 0, xpEarned: 0, weakMode: false };
+    studyNext();
   }
 
-  function currentItem() { return session.queue[0]; }
+  function studyNext() {
+    if (!study) return;
+    if (study.queue.length === 0) return endStudy();
+    const item = study.queue.shift();
+    if (item.kind === "intro") renderIntro(item);
+    else startStudyTest(item);
+  }
 
-  function renderStudyCard() {
-    const item = currentItem();
+  function studyProgress() {
+    const pct = study.total ? (study.done / study.total * 100) : 0;
+    return { pct, text: `${study.done}/${study.total}` };
+  }
+
+  function renderIntro(item) {
+    introItem = item;
     const w = item.word;
     const badge = $("card-badge");
-    if (item.isNew) { badge.textContent = "✨ 새 단어"; badge.className = "card-badge badge-new"; }
-    else { badge.textContent = "🔁 복습"; badge.className = "card-badge"; }
+    if (item.isNew) { badge.textContent = "✨ 새 " + (isSentence(w) ? "문장" : "단어"); badge.className = "card-badge badge-new"; }
+    else { badge.textContent = "🔁 다시 익히기 (어려운 카드)"; badge.className = "card-badge"; }
 
     if (isSentence(w)) {
-      // 문장 카드: 앞면 = 한국어, 정답 = 영어 문장
       $("card-word").textContent = w.meaning;
       $("card-word").classList.add("sentence-front");
       $("card-ipa").textContent = w.cat ? "💬 " + w.cat : "";
       $("card-meaning").textContent = w.word;
-      $("card-example").textContent = w.example || ""; // 내 카드 문장은 상황 설명 표시
+      $("card-example").textContent = w.example || "";
     } else {
       $("card-word").textContent = w.word;
       $("card-word").classList.remove("sentence-front");
       $("card-ipa").textContent = w.ipa || "";
       $("card-meaning").textContent = w.meaning;
       $("card-example").textContent = w.example || "";
-      $("btn-tts").hidden = false;
     }
+    $("card-answer").hidden = false; // 소개 카드는 항상 전체 공개
+    $("btn-tts").hidden = false;
     $("ai-actions").hidden = isSentence(w); // 연상법/예문 생성은 단어 전용
     $("ai-output").hidden = true;
     $("ai-output").innerHTML = "";
-
-    const revealNow = item.isNew; // 새 단어는 바로 전체 공개
-    $("card-answer").hidden = !revealNow;
-    $("btn-reveal").hidden = revealNow;
-    $("grade-buttons").hidden = !revealNow;
-    $("btn-tts").hidden = isSentence(w) && !revealNow; // 문장은 정답(영어) 공개 전 발음 숨김
-    if (revealNow) {
-      updateIntervalPreviews(w);
-      speak(w.word);
-    }
-
-    const pct = session.done / session.total * 100;
-    $("study-progress").style.width = `${pct}%`;
-    $("study-count").textContent = `${session.done}/${session.total}`;
-  }
-
-  function updateIntervalPreviews(w) {
-    const c = state.cards[w.id] || SRS.newCardState();
-    const previews = SRS.previewIntervals(c);
-    previews.forEach((p, i) => { $(`ivl-${i}`).textContent = p; });
-  }
-
-  $("btn-reveal").addEventListener("click", () => {
-    const w = currentItem().word;
-    $("card-answer").hidden = false;
-    $("btn-reveal").hidden = true;
-    $("grade-buttons").hidden = false;
-    $("btn-tts").hidden = false;
-    updateIntervalPreviews(w);
     speak(w.word);
+
+    const p = studyProgress();
+    $("study-progress").style.width = `${p.pct}%`;
+    $("study-count").textContent = p.text;
+    show("study");
+  }
+
+  // 소개 확인 → 2~4문제 뒤에 자동 테스트
+  $("btn-intro-next").addEventListener("click", () => {
+    if (!study || !introItem) return;
+    const item = introItem;
+    introItem = null;
+    if (item.isNew && !study.newIntroduced.has(item.word.id)) {
+      study.newIntroduced.add(item.word.id);
+      const log = Store.todayLog(state);
+      log.newLearned += 1;
+      log.actions += 1;
+      Store.save(state);
+      runQuestCheck();
+    }
+    study.done += 1;
+    insertIntoQueue({ ...item, kind: "test" }, 2, 4);
+    studyNext();
   });
 
-  $("btn-tts").addEventListener("click", () => speak(currentItem().word.word));
+  function startStudyTest(item) {
+    const q = Quiz.makeQuestion(item.word, activeWords());
+    studyTest = { item, q };
+    const badge = item.isNew ? "✨ 새 카드 테스트" : (item.leech ? "🔁 어려운 카드" : "📖 복습");
+    renderQuestionDom(q, badge + " · " + q.typeLabel);
+    const p = studyProgress();
+    $("quiz-progress").style.width = `${p.pct}%`;
+    $("quiz-count").textContent = p.text;
+    show("quiz");
+  }
+
+  // 자동 채점 결과 → SRS 반영
+  function handleStudyResult(correct) {
+    const item = studyTest.item;
+    const w = item.word;
+    const prev = state.cards[w.id] || SRS.newCardState();
+    let msg = "";
+    if (!item.isNew && !item.counted) {
+      item.counted = true;
+      study.reviewedCount += 1;
+      const log = Store.todayLog(state);
+      log.reviewed += 1;
+    }
+    Store.todayLog(state).actions += 1;
+    if (correct) {
+      if (item.fails === 0) {
+        state.cards[w.id] = SRS.nextState(prev, study.weakMode ? 1 : 2);
+        const xp = item.isNew ? 10 : 5;
+        study.xpEarned += xp;
+        awardXp(xp);
+        msg = `✅ 정답입니다! +${xp}XP`;
+      } else {
+        state.cards[w.id] = SRS.nextState(prev, 1); // 재도전 성공 → 내일 한 번 더
+        study.xpEarned += 2;
+        awardXp(2);
+        msg = "✅ 좋아요! 내일 한 번 더 확인할게요 +2XP";
+      }
+    } else {
+      item.fails += 1;
+      if (item.fails === 1) {
+        state.cards[w.id] = SRS.nextState(prev, 0); // 오답 기록
+        insertIntoQueue({ ...item, kind: "test" }, 2, 4); // 잠시 후 재도전
+        toast("💪 잠시 후 이 카드가 다시 나옵니다");
+      } else {
+        // 같은 세션 2회 오답: 오늘은 그만 (어려운 카드는 이틀 뒤)
+        const push = item.leech ? 2 : 1;
+        state.cards[w.id] = { ...state.cards[w.id], ivl: push, due: SRS.todayStr(push) };
+        toast(push === 1 ? "📌 이 카드는 내일 다시 복습합니다" : "📌 이 카드는 모레 다시 복습합니다");
+      }
+    }
+    study.done += 1;
+    Store.save(state);
+    runQuestCheck();
+    return msg;
+  }
+
+  function endStudy() {
+    const s = study;
+    study = null;
+    studyTest = null;
+    introItem = null;
+    const title = s.weakMode ? "약점 집중 복습 완료!" : "오늘의 학습 완료!";
+    showSummary("🎉", title,
+      `새 ${deckNoun()} <b>${s.newIntroduced.size}</b>개 학습<br>복습 <b>${s.reviewedCount}</b>개 완료<br>` +
+      `⚡ 획득 XP <b>+${s.xpEarned}</b>`);
+    syncPush(true);
+  }
+
+  $("btn-tts").addEventListener("click", () => introItem && speak(introItem.word.word));
+  $("btn-study-exit").addEventListener("click", () => { study = null; studyTest = null; introItem = null; show("home"); });
+  $("btn-start-study").addEventListener("click", startStudy);
 
   // ---------- 기기 간 동기화 (GitHub Gist) ----------
   function renderSyncStatus() {
@@ -527,8 +639,8 @@
 
   // ---------- 학습 카드 AI 기능 ----------
   async function runAiFeature(kind) {
-    if (!session) return;
-    const w = currentItem().word;
+    if (!introItem) return;
+    const w = introItem.word;
     if (!AI.configured(state)) {
       toast("먼저 Claude API 키를 설정해주세요");
       $("ai-modal").hidden = false;
@@ -550,7 +662,7 @@
         cache[w.id] = content;
         Store.save(state);
       }
-      if (!session || currentItem().word.id !== w.id) return; // 이미 다음 카드로 넘어감
+      if (!introItem || introItem.word.id !== w.id) return; // 이미 다음 카드로 넘어감
       out.className = "ai-output";
       out.hidden = false;
       out.innerHTML = "";
@@ -577,7 +689,7 @@
         }
       }
     } catch (e) {
-      if (!session || currentItem().word.id !== w.id) return;
+      if (!introItem || introItem.word.id !== w.id) return;
       out.className = "ai-output error";
       out.hidden = false;
       out.textContent = "⚠️ " + e.message;
@@ -587,56 +699,6 @@
   }
   $("btn-ai-mnemonic").addEventListener("click", () => runAiFeature("mnemonic"));
   $("btn-ai-example").addEventListener("click", () => runAiFeature("example"));
-
-  $("grade-buttons").addEventListener("click", e => {
-    const btn = e.target.closest("[data-grade]");
-    if (!btn) return;
-    gradeCurrent(Number(btn.dataset.grade));
-  });
-
-  function gradeCurrent(grade) {
-    const item = session.queue.shift();
-    const w = item.word;
-    const prev = state.cards[w.id] || SRS.newCardState();
-    state.cards[w.id] = SRS.nextState(prev, grade);
-
-    const log = Store.todayLog(state);
-    log.actions += 1;
-    if (item.isNew && !session.newIntroduced.has(w.id)) {
-      session.newIntroduced.add(w.id);
-      log.newLearned += 1;
-      session.xpEarned += 10;
-      awardXp(10);
-    } else if (!item.isNew && !item.requeued) {
-      session.reviewedCount += 1;
-      log.reviewed += 1;
-      session.xpEarned += 5;
-      awardXp(5);
-    }
-    runQuestCheck();
-
-    if (grade === 0) {
-      // 모름: 이번 세션 안에서 다시 등장
-      session.queue.push({ ...item, isNew: item.isNew, requeued: true });
-      session.total += item.requeued ? 0 : 1;
-    }
-    session.done += 1;
-    Store.save(state);
-
-    if (session.queue.length === 0) endStudy();
-    else renderStudyCard();
-  }
-
-  function endStudy() {
-    showSummary("🎉", "오늘의 학습 완료!",
-      `새 단어 <b>${session.newIntroduced.size}</b>개 학습<br>복습 <b>${session.reviewedCount}</b>개 완료<br>` +
-      `⚡ 획득 XP <b>+${session.xpEarned}</b>`);
-    session = null;
-    syncPush(true); // 백그라운드 자동 백업
-  }
-
-  $("btn-study-exit").addEventListener("click", () => { session = null; show("home"); });
-  $("btn-start-study").addEventListener("click", startStudy);
 
   // ---------- 퀴즈 ----------
   let quiz = null; // {questions, index, correct}
@@ -686,7 +748,14 @@
 
   function renderQuiz() {
     const q = quiz.questions[quiz.index];
-    $("quiz-type-badge").textContent = q.typeLabel;
+    renderQuestionDom(q, q.typeLabel);
+    $("quiz-progress").style.width = `${quiz.index / quiz.questions.length * 100}%`;
+    $("quiz-count").textContent = `${quiz.index + 1}/${quiz.questions.length}`;
+  }
+
+  // 문제 1개를 퀴즈 화면 DOM에 그리기 (퀴즈/학습 테스트 공용)
+  function renderQuestionDom(q, badgeText) {
+    $("quiz-type-badge").textContent = badgeText;
     $("quiz-question").innerHTML = "";
     const qText = document.createTextNode(q.question);
     $("quiz-question").appendChild(qText);
@@ -719,9 +788,6 @@
       $("spelling-input").value = "";
       $("spelling-input").focus();
     }
-
-    $("quiz-progress").style.width = `${quiz.index / quiz.questions.length * 100}%`;
-    $("quiz-count").textContent = `${quiz.index + 1}/${quiz.questions.length}`;
   }
 
   // ---------- 문장 조립 퍼즐 ----------
@@ -764,7 +830,7 @@
   });
 
   function answerQuiz(chosen, btnEl) {
-    const q = quiz.questions[quiz.index];
+    const q = studyTest ? studyTest.q : quiz.questions[quiz.index];
     const isCorrect = chosen.trim().toLowerCase() === q.answer.trim().toLowerCase();
     const fb = $("quiz-feedback");
 
@@ -774,21 +840,28 @@
     });
     if (btnEl && !isCorrect) btnEl.classList.add("wrong");
 
-    const log = Store.todayLog(state);
-    log.actions += 1;
-    if (isCorrect) {
-      quiz.correct += 1;
-      awardXp(5);
-      Store.save(state);
-      fb.textContent = "✅ 정답입니다! +5XP";
-      fb.className = "quiz-feedback ok";
+    if (studyTest) {
+      // 학습 테스트: 자동 채점 엔진이 SRS/XP/재출제를 처리
+      const msg = handleStudyResult(isCorrect);
+      fb.textContent = isCorrect ? msg : `❌ 정답: ${q.target.word} — ${q.target.meaning}`;
+      fb.className = isCorrect ? "quiz-feedback ok" : "quiz-feedback no";
     } else {
-      fb.textContent = `❌ 정답: ${q.target.word} — ${q.target.meaning}`;
-      fb.className = "quiz-feedback no";
-      // 틀린 단어는 학습했던 단어라면 오늘 다시 복습하도록
-      if (state.cards[q.target.id]) {
-        state.cards[q.target.id] = { ...state.cards[q.target.id], due: SRS.todayStr() };
+      const log = Store.todayLog(state);
+      log.actions += 1;
+      if (isCorrect) {
+        quiz.correct += 1;
+        awardXp(5);
         Store.save(state);
+        fb.textContent = "✅ 정답입니다! +5XP";
+        fb.className = "quiz-feedback ok";
+      } else {
+        fb.textContent = `❌ 정답: ${q.target.word} — ${q.target.meaning}`;
+        fb.className = "quiz-feedback no";
+        // 틀린 단어는 학습했던 단어라면 오늘 다시 복습하도록
+        if (state.cards[q.target.id]) {
+          state.cards[q.target.id] = { ...state.cards[q.target.id], due: SRS.todayStr() };
+          Store.save(state);
+        }
       }
     }
     fb.hidden = false;
@@ -809,6 +882,11 @@
   });
 
   $("btn-quiz-next").addEventListener("click", () => {
+    if (studyTest) { // 학습 테스트 진행 중이면 학습 흐름으로 복귀
+      studyTest = null;
+      studyNext();
+      return;
+    }
     quiz.index += 1;
     if (quiz.index >= quiz.questions.length) endQuiz();
     else renderQuiz();
@@ -830,8 +908,120 @@
     syncPush(true); // 백그라운드 자동 백업
   }
 
-  $("btn-quiz-exit").addEventListener("click", () => { quiz = null; show("home"); });
+  $("btn-quiz-exit").addEventListener("click", () => {
+    if (studyTest) { studyTest = null; study = null; introItem = null; }
+    quiz = null;
+    show("home");
+  });
   $("btn-start-quiz").addEventListener("click", startQuiz);
+
+  // ---------- 📊 학습 통계 & 약점 집중 복습 ----------
+  function weakEntries() {
+    return Object.entries(state.cards)
+      .map(([id, c]) => ({ w: wordById.get(Number(id)), c }))
+      .filter(x => x.w && inDeck(x.w) && (x.c.wrong || 0) >= 2)
+      .sort((a, b) => (b.c.wrong - a.c.wrong) || ((b.c.lapses || 0) - (a.c.lapses || 0)));
+  }
+
+  function renderStats() {
+    // 요약 수치
+    let learned = 0, correct = 0, wrong = 0;
+    for (const [id, c] of Object.entries(state.cards)) {
+      const w = wordById.get(Number(id));
+      if (!w || !inDeck(w)) continue;
+      learned++;
+      correct += c.correct || 0;
+      wrong += c.wrong || 0;
+    }
+    const total = correct + wrong;
+    const rate = total ? Math.round(correct / total * 100) : 0;
+    const cards = $("stats-cards");
+    cards.innerHTML = "";
+    [[learned.toLocaleString(), `학습한 ${deckNoun()}`], [`${rate}%`, "정답률"], [total.toLocaleString(), "누적 풀이"]].forEach(([num, label]) => {
+      const d = document.createElement("div");
+      d.className = "stat-card";
+      const n = document.createElement("div");
+      n.className = "stat-num" + (label === "정답률" ? " accent" : "");
+      n.textContent = num;
+      const l = document.createElement("div");
+      l.className = "stat-label";
+      l.textContent = label;
+      d.appendChild(n); d.appendChild(l);
+      cards.appendChild(d);
+    });
+
+    // 최근 7일 학습량 막대
+    const week = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const e = state.days[SRS.dateKey(d)];
+      week.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, n: e ? (e.actions || 0) : 0 });
+    }
+    const max = Math.max(1, ...week.map(x => x.n));
+    const wk = $("stats-week");
+    wk.innerHTML = "";
+    for (const day of week) {
+      const col = document.createElement("div");
+      col.className = "wk-col";
+      const num = document.createElement("div");
+      num.className = "wk-num";
+      num.textContent = day.n || "";
+      const bar = document.createElement("div");
+      bar.className = "wk-bar" + (day.n ? "" : " empty");
+      bar.style.height = `${Math.max(4, day.n / max * 70)}px`;
+      const lb = document.createElement("div");
+      lb.className = "wk-label";
+      lb.textContent = day.label;
+      col.appendChild(num); col.appendChild(bar); col.appendChild(lb);
+      wk.appendChild(col);
+    }
+
+    // 자주 틀리는 카드 목록
+    const list = $("weak-list");
+    list.innerHTML = "";
+    const weak = weakEntries().slice(0, 15);
+    if (weak.length === 0) {
+      const p = document.createElement("div");
+      p.className = "weak-empty";
+      p.textContent = "아직 자주 틀리는 카드가 없어요 👍 (오답 2회 이상인 카드가 여기 표시됩니다)";
+      list.appendChild(p);
+    }
+    for (const { w, c } of weak) {
+      const row = document.createElement("div");
+      row.className = "custom-row";
+      const txt = document.createElement("div");
+      txt.className = "custom-row-text";
+      const en = document.createElement("div");
+      en.className = "custom-en";
+      en.textContent = ((c.lapses || 0) >= 4 ? "🔥 " : "") + w.word;
+      const ko = document.createElement("div");
+      ko.className = "custom-ko";
+      ko.textContent = w.meaning;
+      txt.appendChild(en); txt.appendChild(ko);
+      const cnt = document.createElement("div");
+      cnt.className = "weak-count";
+      cnt.textContent = `오답 ${c.wrong}회`;
+      row.appendChild(txt); row.appendChild(cnt);
+      list.appendChild(row);
+    }
+  }
+
+  $("btn-stats").addEventListener("click", () => { renderStats(); show("stats"); });
+  $("btn-stats-exit").addEventListener("click", () => show("home"));
+
+  $("btn-weak-study").addEventListener("click", () => {
+    const weak = weakEntries().map(x => x.w);
+    if (weak.length === 0) {
+      toast("집중 복습할 카드가 없어요 👍");
+      return;
+    }
+    const queue = Quiz.shuffle(weak).slice(0, 10).map(w => ({
+      word: w, kind: isLeech(w) ? "intro" : "test", isNew: false, leech: isLeech(w), fails: 0, counted: true,
+    }));
+    study = { queue, done: 0, total: queue.length, newIntroduced: new Set(), reviewedCount: 0, xpEarned: 0, weakMode: true };
+    studyNext();
+  });
 
   // ---------- AI 회화 ----------
   let talk = null; // {words, history, userCount, busy, finished}

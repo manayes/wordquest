@@ -93,5 +93,5 @@ const Quiz = (() => {
     return targets.map(t => makeQuestion(t, all));
   }
 
-  return { makeQuizSet, shuffle };
+  return { makeQuizSet, makeQuestion, shuffle };
 })();

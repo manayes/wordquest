@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4f6df5">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <div class="app">
@@ -84,6 +84,7 @@
         <option value="20">20개</option>
         <option value="30">30개</option>
       </select>
+      <button class="btn-ai-settings" id="btn-stats">📊 통계</button>
       <button class="btn-ai-settings" id="btn-add-card">➕ 카드 추가</button>
       <button class="btn-ai-settings" id="btn-ai-settings">🤖 AI 설정</button>
       <button class="btn-ai-settings" id="btn-sync-settings">☁️ 동기화</button>
@@ -121,14 +122,24 @@
     </div>
 
     <div class="study-actions">
-      <button class="btn btn-primary" id="btn-reveal">정답 보기</button>
-      <div class="grade-buttons" id="grade-buttons" hidden>
-        <button class="btn grade grade-again" data-grade="0">모름<small id="ivl-0"></small></button>
-        <button class="btn grade grade-hard" data-grade="1">애매함<small id="ivl-1"></small></button>
-        <button class="btn grade grade-good" data-grade="2">알았음<small id="ivl-2"></small></button>
-        <button class="btn grade grade-easy" data-grade="3">쉬움<small id="ivl-3"></small></button>
-      </div>
+      <button class="btn btn-primary" id="btn-intro-next">확인했어요 — 잠시 후 테스트 ✍️</button>
     </div>
+  </section>
+
+  <!-- 학습 통계 화면 -->
+  <section id="screen-stats" class="screen" hidden>
+    <div class="topbar">
+      <button class="btn-icon" id="btn-stats-exit" title="홈으로">←</button>
+      <div class="talk-title">📊 학습 통계</div>
+      <button class="btn-mini" id="btn-weak-study">💪 약점 집중 복습</button>
+    </div>
+    <div class="stats-cards" id="stats-cards"></div>
+    <div class="stats-week-wrap">
+      <div class="stats-sec-title">최근 7일 학습량</div>
+      <div class="stats-week" id="stats-week"></div>
+    </div>
+    <div class="stats-sec-title">🔥 자주 틀리는 카드</div>
+    <div class="weak-list" id="weak-list"></div>
   </section>
 
   <!-- 퀴즈 화면 -->
@@ -295,16 +306,16 @@
 
 <div id="toast-container"></div>
 
-<script src="data/words.js?v=15"></script>
-<script src="data/words_toeic.js?v=15"></script>
-<script src="data/sentences.js?v=15"></script>
-<script src="js/srs.js?v=15"></script>
-<script src="js/store.js?v=15"></script>
-<script src="js/game.js?v=15"></script>
-<script src="js/quiz.js?v=15"></script>
-<script src="js/ai.js?v=15"></script>
-<script src="js/sync.js?v=15"></script>
-<script src="js/app.js?v=15"></script>
+<script src="data/words.js?v=17"></script>
+<script src="data/words_toeic.js?v=17"></script>
+<script src="data/sentences.js?v=17"></script>
+<script src="js/srs.js?v=17"></script>
+<script src="js/store.js?v=17"></script>
+<script src="js/game.js?v=17"></script>
+<script src="js/quiz.js?v=17"></script>
+<script src="js/ai.js?v=17"></script>
+<script src="js/sync.js?v=17"></script>
+<script src="js/app.js?v=17"></script>
 <script>
 // PWA: 서비스워커 등록 (설치형 앱 + 오프라인 지원)
 if ("serviceWorker" in navigator) {
