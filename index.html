@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4f6df5">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
 <div class="app">
@@ -44,20 +44,6 @@
       <div class="stat-card"><div class="stat-num gold" id="stat-master">0</div><div class="stat-label">마스터</div></div>
     </div>
 
-    <div class="progress-wrap">
-      <div class="progress-labels">
-        <span>🌱 새싹 <b id="stat-seed">0</b></span>
-        <span>🌿 성장 <b id="stat-grow">0</b></span>
-        <span>🌳 마스터 <b id="stat-tree">0</b></span>
-      </div>
-      <div class="progress-bar-bg"><div class="progress-bar" id="learn-progress"></div></div>
-      <div class="progress-caption" id="progress-caption"></div>
-    </div>
-
-    <div class="heatmap-wrap">
-      <div class="heatmap-title">📅 학습 기록</div>
-      <div class="heatmap" id="heatmap"></div>
-    </div>
     </div><!-- /home-left -->
 
     <div class="home-right">
@@ -167,9 +153,22 @@
       <button class="btn-mini" id="btn-weak-study">💪 약점 집중 복습</button>
     </div>
     <div class="stats-cards" id="stats-cards"></div>
+    <div class="progress-wrap">
+      <div class="progress-labels">
+        <span>🌱 새싹 <b id="stat-seed">0</b></span>
+        <span>🌿 성장 <b id="stat-grow">0</b></span>
+        <span>🌳 마스터 <b id="stat-tree">0</b></span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar" id="learn-progress"></div></div>
+      <div class="progress-caption" id="progress-caption"></div>
+    </div>
     <div class="stats-week-wrap">
       <div class="stats-sec-title">최근 7일 학습량</div>
       <div class="stats-week" id="stats-week"></div>
+    </div>
+    <div class="heatmap-wrap">
+      <div class="heatmap-title">📅 학습 기록</div>
+      <div class="heatmap" id="heatmap"></div>
     </div>
     <div class="stats-sec-title">🔥 자주 틀리는 카드</div>
     <div class="weak-list" id="weak-list"></div>
@@ -341,16 +340,16 @@
 
 <div id="toast-container"></div>
 
-<script src="data/words.js?v=19"></script>
-<script src="data/words_toeic.js?v=19"></script>
-<script src="data/sentences.js?v=19"></script>
-<script src="js/srs.js?v=19"></script>
-<script src="js/store.js?v=19"></script>
-<script src="js/game.js?v=19"></script>
-<script src="js/quiz.js?v=19"></script>
-<script src="js/ai.js?v=19"></script>
-<script src="js/sync.js?v=19"></script>
-<script src="js/app.js?v=19"></script>
+<script src="data/words.js?v=20"></script>
+<script src="data/words_toeic.js?v=20"></script>
+<script src="data/sentences.js?v=20"></script>
+<script src="js/srs.js?v=20"></script>
+<script src="js/store.js?v=20"></script>
+<script src="js/game.js?v=20"></script>
+<script src="js/quiz.js?v=20"></script>
+<script src="js/ai.js?v=20"></script>
+<script src="js/sync.js?v=20"></script>
+<script src="js/app.js?v=20"></script>
 <script>
 // PWA: 서비스워커 등록 (설치형 앱 + 오프라인 지원)
 if ("serviceWorker" in navigator) {
