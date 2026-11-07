@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4f6df5">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 <div class="app">
@@ -206,12 +206,14 @@
     <div class="topbar">
       <button class="btn-icon" id="btn-talk-exit" title="홈으로">←</button>
       <div class="talk-title">🗣️ AI 회화</div>
+      <button class="btn-icon" id="btn-talk-speaker" title="AI 응답 자동 읽기 켜기/끄기">🔊</button>
       <button class="btn-mini" id="btn-talk-finish">교정받고 종료</button>
     </div>
     <div class="talk-words" id="talk-words"></div>
     <div class="talk-messages" id="talk-messages"></div>
     <div class="talk-input-row">
-      <input type="text" id="talk-input" placeholder="영어로 대답해보세요..." autocomplete="off">
+      <button class="btn-mic" id="btn-talk-mic" title="말로 입력하기">🎤</button>
+      <input type="text" id="talk-input" placeholder="영어로 말하거나 입력하세요..." autocomplete="off">
       <button class="btn btn-primary" id="btn-talk-send">전송</button>
     </div>
   </section>
@@ -339,16 +341,16 @@
 
 <div id="toast-container"></div>
 
-<script src="data/words.js?v=18"></script>
-<script src="data/words_toeic.js?v=18"></script>
-<script src="data/sentences.js?v=18"></script>
-<script src="js/srs.js?v=18"></script>
-<script src="js/store.js?v=18"></script>
-<script src="js/game.js?v=18"></script>
-<script src="js/quiz.js?v=18"></script>
-<script src="js/ai.js?v=18"></script>
-<script src="js/sync.js?v=18"></script>
-<script src="js/app.js?v=18"></script>
+<script src="data/words.js?v=19"></script>
+<script src="data/words_toeic.js?v=19"></script>
+<script src="data/sentences.js?v=19"></script>
+<script src="js/srs.js?v=19"></script>
+<script src="js/store.js?v=19"></script>
+<script src="js/game.js?v=19"></script>
+<script src="js/quiz.js?v=19"></script>
+<script src="js/ai.js?v=19"></script>
+<script src="js/sync.js?v=19"></script>
+<script src="js/app.js?v=19"></script>
 <script>
 // PWA: 서비스워커 등록 (설치형 앱 + 오프라인 지원)
 if ("serviceWorker" in navigator) {

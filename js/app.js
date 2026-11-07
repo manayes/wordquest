@@ -1066,6 +1066,62 @@
     return div;
   }
 
+  // ---------- 음성 회화: AI 응답 자동 읽기 + 말로 입력 ----------
+  function talkTtsOn() { return state.settings.talkTts !== false; }
+
+  function renderSpeakerBtn() {
+    $("btn-talk-speaker").style.opacity = talkTtsOn() ? "1" : "0.35";
+    $("btn-talk-speaker").textContent = talkTtsOn() ? "🔊" : "🔇";
+  }
+
+  $("btn-talk-speaker").addEventListener("click", () => {
+    state.settings.talkTts = !talkTtsOn();
+    Store.save(state);
+    renderSpeakerBtn();
+    if (!talkTtsOn()) speechSynthesis.cancel();
+    toast(talkTtsOn() ? "🔊 AI 응답을 자동으로 읽어줍니다" : "🔇 자동 읽기 끔");
+  });
+
+  let talkRec = null; // 음성 입력 중인 recognizer
+
+  function stopTalkMic() {
+    const btn = $("btn-talk-mic");
+    btn.classList.remove("recording");
+    btn.textContent = "🎤";
+    talkRec = null;
+  }
+
+  function micTalk() {
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    if (!Rec || !talk) return;
+    const btn = $("btn-talk-mic");
+    if (talkRec) { talkRec.abort(); stopTalkMic(); return; }
+    speechSynthesis.cancel(); // AI 음성과 겹치지 않게
+    talkRec = new Rec();
+    talkRec.lang = "en-US";
+    talkRec.interimResults = true; // 말하는 동안 실시간 표시
+    talkRec.maxAlternatives = 1;
+    btn.classList.add("recording");
+    btn.textContent = "⏹";
+    talkRec.onresult = e => {
+      let text = "";
+      for (const res of e.results) text += res[0].transcript;
+      $("talk-input").value = text.trim();
+      if (e.results[e.results.length - 1].isFinal) {
+        stopTalkMic();
+        $("talk-input").focus(); // 확인/수정 후 전송
+      }
+    };
+    talkRec.onerror = e => {
+      stopTalkMic();
+      if (e.error === "not-allowed") toast("마이크 권한을 허용해주세요");
+      else if (e.error !== "aborted" && e.error !== "no-speech") toast("음성 인식 실패 — 다시 시도해주세요");
+    };
+    talkRec.onend = () => { if (talkRec) stopTalkMic(); };
+    try { talkRec.start(); } catch (e) { stopTalkMic(); }
+  }
+  $("btn-talk-mic").addEventListener("click", micTalk);
+
   async function startTalk() {
     if (!requireAi()) return;
     const words = recentLearnedWords(5);
@@ -1085,6 +1141,8 @@
     }
     $("talk-input").value = "";
     $("btn-talk-finish").disabled = true;
+    $("btn-talk-mic").hidden = !(window.SpeechRecognition || window.webkitSpeechRecognition); // 아이폰 등 미지원 시 숨김
+    renderSpeakerBtn();
     show("talk");
     // 첫 인사 요청 (킥오프 메시지는 화면에 표시하지 않음)
     talk.history.push({ role: "user", content: "Hi! Please start our conversation with a friendly greeting and one easy question." });
@@ -1095,6 +1153,7 @@
       talk.history.push({ role: "assistant", content: reply });
       loading.remove();
       addBubble("ai", reply);
+      if (talkTtsOn()) speak(reply);
       $("talk-input").focus();
     } catch (e) {
       loading.remove();
@@ -1119,6 +1178,7 @@
       talk.history.push({ role: "assistant", content: reply });
       loading.remove();
       addBubble("ai", reply);
+      if (talkTtsOn()) speak(reply);
     } catch (e) {
       loading.remove();
       addBubble("ai", "⚠️ " + e.message);
@@ -1205,7 +1265,12 @@
     setTimeout(scrollTalkToBottom, 300); // 키보드 애니메이션 후
   });
   $("btn-talk-finish").addEventListener("click", finishTalk);
-  $("btn-talk-exit").addEventListener("click", () => { talk = null; show("home"); });
+  $("btn-talk-exit").addEventListener("click", () => {
+    if (talkRec) { talkRec.abort(); stopTalkMic(); }
+    speechSynthesis.cancel();
+    talk = null;
+    show("home");
+  });
 
   // ---------- 영작 연습 ----------
   let write = null; // {items, index, good, ok}

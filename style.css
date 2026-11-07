@@ -581,6 +581,16 @@ body {
 }
 .talk-input-row input:focus { border-color: var(--primary); }
 .talk-input-row .btn { padding: 12px 18px; }
+.btn-mic {
+  flex-shrink: 0;
+  width: 46px;
+  font-size: 1.15rem;
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.btn-mic.recording { background: #ef4444; border-color: #ef4444; color: #fff; animation: pulse 1s infinite; }
 
 /* ---------- 영작 연습 ---------- */
 .write-card { justify-content: flex-start; gap: 12px; }
