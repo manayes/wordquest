@@ -785,6 +785,36 @@ body {
 .assemble-tile:hover { border-color: var(--primary); }
 .assemble-tile:disabled { opacity: 0.25; cursor: default; }
 
+/* ---------- 🎵 오디오 모드 ---------- */
+#screen-audio { max-width: 560px; width: 100%; margin: 0 auto; }
+.audio-card { justify-content: center; gap: 16px; }
+.audio-ko {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+.audio-en {
+  font-size: 1.1rem;
+  color: var(--primary);
+  font-weight: 700;
+  min-height: 1.6em;
+  line-height: 1.6;
+}
+.audio-opts { display: flex; gap: 8px; }
+.audio-opts select {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1.5px solid #d6dcea;
+  background: #fff;
+}
+.audio-controls { display: flex; gap: 8px; align-items: stretch; }
+.audio-controls .audio-play { flex: 1; }
+.audio-note { font-size: 0.78rem; color: var(--text-sub); line-height: 1.5; text-align: center; }
+
 /* ---------- 📊 학습 통계 ---------- */
 #screen-stats { max-width: 560px; width: 100%; margin: 0 auto; }
 .stats-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }

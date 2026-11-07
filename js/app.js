@@ -34,7 +34,7 @@
   });
 
   // ---------- 화면 전환 ----------
-  const screens = ["home", "study", "quiz", "talk", "write", "shadow", "stats", "summary"];
+  const screens = ["home", "study", "quiz", "talk", "write", "shadow", "audio", "stats", "summary"];
   function show(name) {
     screens.forEach(s => { $(`screen-${s}`).hidden = (s !== name); });
     if (name === "home") renderHome();
@@ -1467,6 +1467,165 @@
     if (recognizer) { recognizer.abort(); recognizer = null; }
     speechSynthesis.cancel();
     shadow = null;
+    show("home");
+  });
+
+  // ---------- 🎵 오디오 모드 (출퇴근 듣기) ----------
+  let audio = null; // {items, idx, playing, token, timer, played}
+  let wakeLock = null;
+
+  async function requestWake() {
+    try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  }
+  function releaseWake() {
+    try { if (wakeLock) wakeLock.release(); } catch (e) {}
+    wakeLock = null;
+  }
+
+  // 말하기가 끝날 때까지 기다림 (환경 문제로 onend가 안 오면 길이 기반 타임아웃)
+  function speakAsync(text, lang, rate) {
+    return new Promise(res => {
+      if (!("speechSynthesis" in window)) return setTimeout(res, 800);
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang;
+      u.rate = rate;
+      const voice = speechSynthesis.getVoices().find(v => v.lang.startsWith(lang.slice(0, 2)));
+      if (voice) u.voice = voice;
+      const guard = setTimeout(res, 3000 + text.length * 150);
+      u.onend = () => { clearTimeout(guard); res(); };
+      u.onerror = () => { clearTimeout(guard); res(); };
+      speechSynthesis.speak(u);
+    });
+  }
+
+  function audioWait(ms) {
+    return new Promise(res => { if (audio) audio.timer = setTimeout(res, ms); else res(); });
+  }
+
+  function renderAudioItem(w, revealEn) {
+    $("audio-ko").textContent = w.meaning;
+    $("audio-en").textContent = revealEn ? w.word : "· · ·";
+    $("audio-count").textContent = `${audio.idx + 1}/${audio.items.length}`;
+  }
+
+  function startAudio() {
+    const studied = Object.keys(state.cards).map(id => wordById.get(Number(id))).filter(w => w && inDeck(w));
+    if (studied.length < 3) {
+      toast("먼저 '오늘의 학습'으로 카드를 3개 이상 배워주세요");
+      return;
+    }
+    const items = Quiz.shuffle(studied).slice(0, 50);
+    audio = { items, idx: 0, playing: false, token: 0, timer: null, played: 0 };
+    $("btn-audio-play").textContent = "▶️ 재생";
+    $("audio-ko").textContent = `카드 ${items.length}장이 준비됐어요 — ▶️ 재생을 눌러 시작하세요`;
+    $("audio-en").textContent = "";
+    $("audio-count").textContent = `1/${items.length}`;
+    show("audio");
+  }
+
+  async function audioLoop(token) {
+    const alive = () => audio && audio.token === token && audio.playing;
+    while (alive() && audio.idx < audio.items.length) {
+      const w = audio.items[audio.idx];
+      const mode = $("audio-mode").value;
+      const rate = parseFloat($("audio-rate").value);
+      if (mode === "koen") {
+        renderAudioItem(w, false);
+        await speakAsync(w.meaning, "ko-KR", 1);
+        if (!alive()) return;
+        await audioWait(2200); // 영어를 떠올릴 시간
+        if (!alive()) return;
+        renderAudioItem(w, true);
+        await speakAsync(w.word, "en-US", rate);
+        if (!alive()) return;
+        await audioWait(600);
+        if (!alive()) return;
+        await speakAsync(w.word, "en-US", rate);
+      } else if (mode === "enko") {
+        renderAudioItem(w, true);
+        await speakAsync(w.word, "en-US", rate);
+        if (!alive()) return;
+        await audioWait(1500); // 뜻을 떠올릴 시간
+        if (!alive()) return;
+        await speakAsync(w.meaning, "ko-KR", 1);
+        if (!alive()) return;
+        await speakAsync(w.word, "en-US", rate);
+      } else { // enonly: 따라 말하기
+        renderAudioItem(w, true);
+        await speakAsync(w.word, "en-US", rate);
+        if (!alive()) return;
+        await audioWait(1800); // 따라 말할 시간
+        if (!alive()) return;
+        await speakAsync(w.word, "en-US", rate);
+      }
+      if (!alive()) return;
+      audio.played += 1;
+      await audioWait(1000);
+      if (!alive()) return;
+      audio.idx += 1;
+    }
+    if (audio && audio.token === token && audio.playing) {
+      // 한 바퀴 완료
+      audio.playing = false;
+      releaseWake();
+      flushAudioLog();
+      awardXp(10);
+      Store.save(state);
+      toast("🎵 한 바퀴 완료! +10XP");
+      $("btn-audio-play").textContent = "▶️ 처음부터";
+      audio.idx = 0;
+    }
+  }
+
+  function flushAudioLog() {
+    if (!audio || audio.played === 0) return;
+    Store.todayLog(state).actions += audio.played;
+    audio.played = 0;
+    Store.save(state);
+  }
+
+  function pauseAudio() {
+    if (!audio) return;
+    audio.playing = false;
+    audio.token += 1;
+    speechSynthesis.cancel();
+    if (audio.timer) clearTimeout(audio.timer);
+    releaseWake();
+    flushAudioLog();
+    $("btn-audio-play").textContent = "▶️ 재생";
+  }
+
+  function playAudio() {
+    if (!audio) return;
+    audio.playing = true;
+    audio.token += 1;
+    $("btn-audio-play").textContent = "⏸ 일시정지";
+    requestWake();
+    audioLoop(audio.token);
+  }
+
+  function audioSeek(delta) {
+    if (!audio) return;
+    const wasPlaying = audio.playing;
+    audio.token += 1;
+    speechSynthesis.cancel();
+    if (audio.timer) clearTimeout(audio.timer);
+    audio.idx = Math.min(Math.max(0, audio.idx + delta), audio.items.length - 1);
+    renderAudioItem(audio.items[audio.idx], false);
+    if (wasPlaying) audioLoop(audio.token);
+  }
+
+  $("btn-start-audio").addEventListener("click", startAudio);
+  $("btn-audio-play").addEventListener("click", () => {
+    if (!audio) return;
+    if (audio.playing) pauseAudio();
+    else playAudio();
+  });
+  $("btn-audio-prev").addEventListener("click", () => audioSeek(-1));
+  $("btn-audio-next").addEventListener("click", () => audioSeek(1));
+  $("btn-audio-exit").addEventListener("click", () => {
+    pauseAudio();
+    audio = null;
     show("home");
   });
 
